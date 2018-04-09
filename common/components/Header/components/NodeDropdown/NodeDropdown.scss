@@ -12,6 +12,7 @@
   box-shadow: $dropdown-shadow;
   transform: translateY(2px);
   color: $text-color;
+  font-size: $font-size-base;
 
   &-nodes {
 
@@ -35,5 +36,14 @@
     padding: $space-xs 0;
     text-align: center;
     color: $text-color;
+
+    &:hover {
+      color: $link-hover-color;
+    }
+
+    .fa {
+      font-size: 14px;
+      opacity: 0.8;
+    }
   }
 }

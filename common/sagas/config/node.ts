@@ -36,7 +36,7 @@ import { StaticNodeConfig, CustomNodeConfig, NodeConfig } from 'types/node';
 import { CustomNetworkConfig, StaticNetworkConfig } from 'types/network';
 import {
   getShepherdOffline,
-  isAutoNode,
+  isAutoNodeName,
   shepherd,
   shepherdProvider,
   stripWeb3Network,
@@ -147,7 +147,7 @@ export function* handleNodeChangeIntent({
     );
   }
 
-  if (isAutoNode(nodeIdToSwitchTo)) {
+  if (isAutoNodeName(nodeIdToSwitchTo)) {
     shepherd.auto();
     if (currentConfig.network !== nextNodeConfig.network) {
       yield apply(shepherd, shepherd.switchNetworks, [nextNodeConfig.network]);

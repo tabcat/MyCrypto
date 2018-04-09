@@ -1,6 +1,7 @@
 import React from 'react';
 import { translateRaw } from 'translations';
 import classnames from 'classnames';
+import { isAutoNode } from 'libs/nodes';
 import { NodeConfig } from 'types/node';
 import { NetworkConfig } from 'types/network';
 import './NetworkOption.scss';
@@ -37,7 +38,7 @@ export default class NetworkOption extends React.PureComponent<Props> {
         </div>
         {isExpanded && (
           <div className="NetworkOption-nodes">
-            {nodes.map(node => (
+            {nodes.filter(node => !isAutoNode(node)).map(node => (
               <div className="NetworkOption-nodes-node" key={node.service}>
                 {node.service}
               </div>
