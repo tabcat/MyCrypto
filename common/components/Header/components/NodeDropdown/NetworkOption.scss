@@ -13,30 +13,15 @@ $radio-size: 12px;
     padding: 0.3rem 0.4rem;
     cursor: pointer;
 
-    &-radio {
-      border: 1px solid rgba($gray-light, 0.4);
-      border-radius: 100%;
-      margin-left: -2px;
-      height: $radio-size;
-      width: $radio-size;
-      margin-right: $space-xs;
-
-      .is-selected > & {
-        background: $brand-success;
-        border-color: $brand-success;
-        box-shadow: 0 0 0 1px #FFF inset;
-      }
-    }
-
     &-name {
       flex: 1;
+      @include ellipsis;
 
       &:before {
         content: "";
         display: inline-block;
         border: 1px solid rgba($gray-light, 0.4);
         border-radius: 100%;
-        margin-left: -2px;
         height: $radio-size;
         width: $radio-size;
         margin-right: $space-xs;
@@ -53,6 +38,12 @@ $radio-size: 12px;
           background: $brand-primary;
           border-color: $brand-primary;
           box-shadow: 0 0 0 1px #FFF inset;
+        }
+      }
+
+      &.is-specific-node {
+        &:before {
+          background: linear-gradient(135deg, #FFF, #FFF 45%, $brand-primary 45%, $brand-primary 100%);
         }
       }
     }
@@ -81,13 +72,8 @@ $radio-size: 12px;
   }
 
   &-nodes {
-    padding: $space-xs $space-md;
+    padding: 0.2rem 0.5rem;
     background: $gray-lightest;
     border-top: 1px solid $gray-lighter;
-
-    &-node {
-      font-size: $font-size-small;
-      padding: 0.15rem 0;
-    }
   }
 }

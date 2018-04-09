@@ -487,7 +487,7 @@
     "CUSTOM_NETWORK_URL": "URL",
     "CUSTOM_NETWORK_HTTP_AUTH": "HTTP Basic Authentication",
     "NETWORKS_SWITCH": "Switch the the $network network",
-    "NETWORKS_ALTERNATIVE": "Alternative Networks",
+    "NETWORKS_ALTERNATIVE": "Other Networks",
     "BROADCAST_TX_TITLE": "Broadcast Signed Transaction",
     "BROADCAST_TX_DESCRIPTION": "Paste a signed transaction and click 'send transaction'",
     "NAME_AUCTION_PROMPT_BID_1": "Want to place a bid on {name}.eth? ",

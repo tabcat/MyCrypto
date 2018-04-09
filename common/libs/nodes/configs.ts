@@ -5,25 +5,25 @@ const NODE_CONFIGS: { [key in StaticNetworkIds]: RawNodeConfig[] } = {
   ETH: [
     {
       type: 'rpc',
-      name: 'eth_mycrypto',
+      id: 'eth_mycrypto',
       service: 'MyCrypto',
       url: 'https://api.mycryptoapi.com/eth'
     },
     {
       type: 'etherscan',
-      name: 'eth_ethscan',
+      id: 'eth_ethscan',
       service: 'Etherscan',
       url: 'https://api.etherscan.io/api'
     },
     {
       type: 'infura',
-      name: 'eth_infura',
+      id: 'eth_infura',
       service: 'Infura',
       url: 'https://mainnet.infura.io/mycrypto'
     },
     {
       type: 'rpc',
-      name: 'eth_blockscale',
+      id: 'eth_blockscale',
       service: 'Blockscale',
       url: 'https://api.dev.blockscale.net/dev/parity'
     }
@@ -32,7 +32,7 @@ const NODE_CONFIGS: { [key in StaticNetworkIds]: RawNodeConfig[] } = {
   Ropsten: [
     {
       type: 'infura',
-      name: 'rop_infura',
+      id: 'rop_infura',
       service: 'Infura',
       url: 'https://ropsten.infura.io/mycrypto'
     }
@@ -41,7 +41,7 @@ const NODE_CONFIGS: { [key in StaticNetworkIds]: RawNodeConfig[] } = {
   Kovan: [
     {
       type: 'etherscan',
-      name: 'kov_ethscan',
+      id: 'kov_ethscan',
       service: 'Etherscan',
       url: 'https://kovan.etherscan.io/api'
     }
@@ -50,13 +50,13 @@ const NODE_CONFIGS: { [key in StaticNetworkIds]: RawNodeConfig[] } = {
   Rinkeby: [
     {
       type: 'infura',
-      name: 'rin_infura',
+      id: 'rin_infura',
       service: 'Infura',
       url: 'https://rinkeby.infura.io/mycrypto'
     },
     {
       type: 'etherscan',
-      name: 'rin_ethscan',
+      id: 'rin_ethscan',
       service: 'Etherscan',
       url: 'https://rinkeby.etherscan.io/api'
     }
@@ -65,7 +65,7 @@ const NODE_CONFIGS: { [key in StaticNetworkIds]: RawNodeConfig[] } = {
   ETC: [
     {
       type: 'rpc',
-      name: 'etc_epool',
+      id: 'etc_epool',
       service: 'Epool.io',
       url: 'https://mewapi.epool.io'
     }
@@ -74,7 +74,7 @@ const NODE_CONFIGS: { [key in StaticNetworkIds]: RawNodeConfig[] } = {
   UBQ: [
     {
       type: 'rpc',
-      name: 'ubq',
+      id: 'ubq',
       service: 'ubiqscan.io',
       url: 'https://pyrus2.ubiqscan.io'
     }
@@ -83,7 +83,7 @@ const NODE_CONFIGS: { [key in StaticNetworkIds]: RawNodeConfig[] } = {
   EXP: [
     {
       type: 'rpc',
-      name: 'exp_tech',
+      id: 'exp_tech',
       service: 'expanse.tech',
       url: 'https://node.expanse.tech/'
     }
@@ -91,7 +91,7 @@ const NODE_CONFIGS: { [key in StaticNetworkIds]: RawNodeConfig[] } = {
   POA: [
     {
       type: 'rpc',
-      name: 'poa',
+      id: 'poa',
       service: 'poa.network',
       url: 'https://core.poa.network'
     }
@@ -100,7 +100,7 @@ const NODE_CONFIGS: { [key in StaticNetworkIds]: RawNodeConfig[] } = {
   TOMO: [
     {
       type: 'rpc',
-      name: 'tomo',
+      id: 'tomo',
       service: 'tomocoin.io',
       url: 'https://core.tomocoin.io'
     }
@@ -109,7 +109,7 @@ const NODE_CONFIGS: { [key in StaticNetworkIds]: RawNodeConfig[] } = {
   ELLA: [
     {
       type: 'rpc',
-      name: 'ella',
+      id: 'ella',
       service: 'ellaism.org',
       url: 'https://jsonrpc.ellaism.org'
     }

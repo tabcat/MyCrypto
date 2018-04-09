@@ -80,9 +80,9 @@ Object.entries(NODE_CONFIGS).forEach(([network, nodes]) => {
       })
     : null;
   nodes.forEach(n => {
-    shepherd.useProvider(n.type, n.name, nodeProviderConf, n.url);
+    shepherd.useProvider(n.type, n.id, nodeProviderConf, n.url);
     if (web3ProviderConf) {
-      shepherd.useProvider(n.type, `web3_${n.name}`, web3ProviderConf, n.url);
+      shepherd.useProvider(n.type, `web3_${n.id}`, web3ProviderConf, n.url);
     }
   });
 });

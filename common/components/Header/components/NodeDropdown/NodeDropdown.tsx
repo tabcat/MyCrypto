@@ -10,6 +10,7 @@ import {
   removeCustomNode
 } from 'actions/config';
 import { getNodeId, getNodeConfig, getAllNodes, getAllNetworkConfigs } from 'selectors/config';
+import { makeAutoNodeId, isAutoNode } from 'libs/nodes';
 import { NodeConfig } from 'types/node';
 import { NetworkConfig } from 'types/network';
 import { AppState } from 'reducers';
@@ -35,7 +36,7 @@ interface DispatchProps {
 
 interface State {
   isShowingAltNetworks: boolean;
-  expandedNetwork: null | string;
+  expandedNetwork: null | NetworkConfig;
 }
 
 type Props = OwnProps & StateProps & DispatchProps;
@@ -49,9 +50,18 @@ class NodeDropdown extends React.Component<Props> {
   private dropdown: DropdownShell | null;
 
   public componentDidMount() {
-    if (!CORE_NETWORKS.includes(this.props.nodeSelection)) {
-      this.setState({ isShowingAltNetworks: true });
+    const { allNodes, nodeSelection } = this.props;
+    const node = allNodes[nodeSelection];
+    const newState = { ...this.state };
+    // Expand alt networks by default if they're on one
+    if (!CORE_NETWORKS.includes(node.network)) {
+      newState.isShowingAltNetworks = true;
     }
+    // Expand the network they're on if they selected a specific node
+    if (!isAutoNode(node)) {
+      newState.expandedNetwork = this.props.allNetworks[node.network];
+    }
+    this.setState(newState);
   }
 
   public render() {
@@ -105,9 +115,11 @@ class NodeDropdown extends React.Component<Props> {
           key={netKey}
           network={allNetworks[netKey]}
           nodes={nodesByNetwork[netKey]}
+          nodeSelection={nodeSelection}
           isSelected={selectedNode.network === netKey}
-          isExpanded={expandedNetwork === netKey}
-          select={this.selectNetwork}
+          isExpanded={expandedNetwork === allNetworks[netKey]}
+          selectNetwork={this.selectNetwork}
+          selectNode={this.selectNode}
           toggleExpand={this.toggleNetworkExpand}
         />
       );
@@ -117,26 +129,35 @@ class NodeDropdown extends React.Component<Props> {
       <div className="NodeDropdown">
         {options.core}
         <button className="NodeDropdown-alts" onClick={this.toggleShowAltNetworks}>
+          <i className="fa fa-flask" />
           {translate(isShowingAltNetworks ? 'HIDE_THING' : 'SHOW_THING', {
             $thing: translateRaw('NETWORKS_ALTERNATIVE')
           })}
         </button>
         {isShowingAltNetworks && options.alt}
         <button className="NodeDropdown-add" onClick={this.openCustomNodeModal}>
+          <i className="fa fa-plus" />
           {translate('NODE_ADD')}
         </button>
       </div>
     );
   };
 
-  private selectNetwork = (network: string) => {
-    this.props.changeNodeIntent(`${network.toLowerCase()}_auto`);
+  private selectNetwork = (network: NetworkConfig) => {
+    this.props.changeNodeIntent(makeAutoNodeId(network.name));
     if (this.dropdown) {
       this.dropdown.close();
     }
   };
 
-  private toggleNetworkExpand = (network: string) => {
+  private selectNode = (node: NodeConfig) => {
+    this.props.changeNodeIntent(node.id);
+    if (this.dropdown) {
+      this.dropdown.close();
+    }
+  };
+
+  private toggleNetworkExpand = (network: NetworkConfig) => {
     this.setState({
       expandedNetwork: network === this.state.expandedNetwork ? null : network
     });

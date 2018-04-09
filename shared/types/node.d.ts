@@ -3,8 +3,8 @@ import { StaticNetworkIds } from './network';
 import { StaticNodesState, CustomNodesState } from 'reducers/config/nodes';
 
 interface RawNodeConfig {
+  id: string;
   type: 'rpc' | 'etherscan' | 'infura' | 'web3' | 'myccustom';
-  name: string;
   service: string;
   url: string;
 }
@@ -23,6 +23,7 @@ interface CustomNodeConfig {
 }
 
 interface StaticNodeConfig {
+  id: string;
   isCustom: false;
   network: StaticNetworkIds;
   service: string;

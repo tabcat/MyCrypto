@@ -16,6 +16,7 @@ const makeInitialStateFromConfig = (): StaticNodesState => {
       state[autoNodeId] = {
         network,
         estimateGas,
+        id: autoNodeId,
         isCustom: false,
         service: AUTO_NODE_SERVICE
       };
@@ -23,9 +24,10 @@ const makeInitialStateFromConfig = (): StaticNodesState => {
 
     // Add all of the individual nodes
     nodes.forEach(node => {
-      state[node.name] = {
+      state[node.id] = {
         network,
         estimateGas,
+        id: node.id,
         isCustom: false,
         service: node.service
       };

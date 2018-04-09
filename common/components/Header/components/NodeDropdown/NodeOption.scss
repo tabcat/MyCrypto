@@ -1,0 +1,54 @@
+@import 'common/sass/variables';
+@import 'common/sass/mixins';
+
+$radio-size: 10px;
+
+.NodeOption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: $font-size-small;
+  padding: 0.15rem 0;
+
+  &-name {
+    flex: 1;
+    cursor: pointer;
+    @include ellipsis;
+
+    &:before {
+      content: '';
+      display: inline-block;
+      border: 1px solid rgba($gray-light, 0.4);
+      border-radius: 100%;
+      height: $radio-size;
+      width: $radio-size;
+      margin-right: $space-xs;
+      background: #FFF;
+    }
+
+    &:hover {
+      &:before {
+        border-color: rgba($gray-light, 0.8);
+      }
+    }
+
+    &.is-selected {
+      &:before {
+        border-color: $brand-primary;
+        background: $brand-primary;
+        box-shadow: 0 0 0 1px #FFF inset;
+      }
+    }
+  }
+
+  &-remove {
+    @include reset-button;
+    opacity: 0.25;
+    font-size: 14px;
+
+    &:hover {
+      color: $brand-danger;
+      opacity: 0.8;
+    }
+  }
+}
