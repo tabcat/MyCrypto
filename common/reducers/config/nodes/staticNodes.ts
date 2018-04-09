@@ -6,6 +6,7 @@ export const INITIAL_STATE: StaticNodesState = {
   eth_auto: {
     network: 'ETH',
     isCustom: false,
+    isAuto: true,
     lib: shepherdProvider,
     service: 'AUTO',
     estimateGas: true

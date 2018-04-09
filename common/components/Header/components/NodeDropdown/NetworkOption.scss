@@ -1,0 +1,94 @@
+@import 'common/sass/variables';
+@import 'common/sass/mixins';
+
+$radio-size: 12px;
+
+.NetworkOption {
+  border-left: 2px solid;
+  border-bottom: 1px solid $gray-lighter;
+
+  &-label {
+    display: flex;
+    align-items: center;
+    padding: 0.3rem 0.4rem;
+    cursor: pointer;
+
+    &-radio {
+      border: 1px solid rgba($gray-light, 0.4);
+      border-radius: 100%;
+      margin-left: -2px;
+      height: $radio-size;
+      width: $radio-size;
+      margin-right: $space-xs;
+
+      .is-selected > & {
+        background: $brand-success;
+        border-color: $brand-success;
+        box-shadow: 0 0 0 1px #FFF inset;
+      }
+    }
+
+    &-name {
+      flex: 1;
+      font-size: $font-size-base;
+
+      &:before {
+        content: "";
+        display: inline-block;
+        border: 1px solid rgba($gray-light, 0.4);
+        border-radius: 100%;
+        margin-left: -2px;
+        height: $radio-size;
+        width: $radio-size;
+        margin-right: $space-xs;
+      }
+
+      &:hover {
+        &:before {
+          border-color: rgba($gray-light, 0.7);
+        }
+      }
+
+      &.is-selected {
+        &:before {
+          background: $brand-primary;
+          border-color: $brand-primary;
+          box-shadow: 0 0 0 1px #FFF inset;
+        }
+      }
+    }
+
+    &-expand {
+      @include reset-button;
+      width: 20px;
+      height: 20px;
+      font-size: 10px;
+      color: $gray-light;
+      border-radius: 100%;
+      transition-property: color, background-color, transform;
+      transition-duration: 75ms;
+      transition-timing-function: ease;
+
+      &:hover {
+        color: $gray-dark;
+        background: rgba(#000, 0.1);
+      }
+
+      &.is-expanded {
+        color: $gray-dark;
+        transform: rotate(180deg);
+      }
+    }
+  }
+
+  &-nodes {
+    padding: $space-xs $space-md;
+    background: $gray-lightest;
+    border-top: 1px solid $gray-lighter;
+
+    &-node {
+      font-size: $font-size-small;
+      padding: 0.15rem 0;
+    }
+  }
+}

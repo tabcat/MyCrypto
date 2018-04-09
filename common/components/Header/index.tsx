@@ -12,28 +12,23 @@ import {
   addCustomNetwork
 } from 'actions/config';
 import logo from 'assets/images/logo-mycrypto.svg';
-import { OldDropDown, ColorDropdown } from 'components/ui';
+import { OldDropDown } from 'components/ui';
 import React, { Component } from 'react';
 import classnames from 'classnames';
 import { Link } from 'react-router-dom';
 import { TSetGasPriceField, setGasPriceField } from 'actions/transaction';
 import { ANNOUNCEMENT_MESSAGE, ANNOUNCEMENT_TYPE, languages } from 'config';
 import Navigation from './components/Navigation';
+import NodeDropdown from './components/NodeDropdown';
 import CustomNodeModal from './components/CustomNodeModal';
 import OnlineStatus from './components/OnlineStatus';
 import { getKeyByValue } from 'utils/helpers';
-import { NodeConfig } from 'types/node';
 import './index.scss';
 import { AppState } from 'reducers';
 import {
   getOffline,
   isNodeChanging,
   getLanguageSelection,
-  getNodeId,
-  getNodeConfig,
-  CustomNodeOption,
-  NodeOption,
-  getNodeOptions,
   getNetworkConfig
 } from 'selectors/config';
 import { NetworkConfig } from 'types/network';
@@ -51,20 +46,14 @@ interface DispatchProps {
 interface StateProps {
   network: NetworkConfig;
   languageSelection: AppState['config']['meta']['languageSelection'];
-  node: NodeConfig;
-  nodeSelection: AppState['config']['nodes']['selectedNode']['nodeId'];
   isChangingNode: AppState['config']['nodes']['selectedNode']['pending'];
   isOffline: AppState['config']['meta']['offline'];
-  nodeOptions: (CustomNodeOption | NodeOption)[];
 }
 
 const mapStateToProps = (state: AppState): StateProps => ({
   isOffline: getOffline(state),
   isChangingNode: isNodeChanging(state),
   languageSelection: getLanguageSelection(state),
-  nodeSelection: getNodeId(state),
-  node: getNodeConfig(state),
-  nodeOptions: getNodeOptions(state),
   network: getNetworkConfig(state)
 });
 
@@ -89,42 +78,10 @@ class Header extends Component<Props, State> {
   };
 
   public render() {
-    const {
-      languageSelection,
-      node,
-      nodeSelection,
-      isChangingNode,
-      isOffline,
-      nodeOptions,
-      network
-    } = this.props;
+    const { languageSelection, isChangingNode, isOffline, network } = this.props;
     const { isAddingCustomNode } = this.state;
     const selectedLanguage = languageSelection;
     const LanguageDropDown = OldDropDown as new () => OldDropDown<typeof selectedLanguage>;
-    const options = nodeOptions.map(n => {
-      if (n.isCustom) {
-        const { label, isCustom, id, ...rest } = n;
-        return {
-          ...rest,
-          name: (
-            <span>
-              {label.network} - {label.nodeName} <small>(custom)</small>
-            </span>
-          ),
-          onRemove: () => this.props.removeCustomNode({ id })
-        };
-      } else {
-        const { label, isCustom, ...rest } = n;
-        return {
-          ...rest,
-          name: (
-            <span>
-              {label.network} <small>({label.service})</small>
-            </span>
-          )
-        };
-      }
-    });
 
     return (
       <div className="Header">
@@ -167,24 +124,7 @@ class Header extends Component<Props, State> {
                   'is-flashing': isChangingNode
                 })}
               >
-                <ColorDropdown
-                  ariaLabel={`
-                    change node. current node is on the ${node.network} network
-                    provided by ${node.service}
-                  `}
-                  options={options}
-                  value={nodeSelection || ''}
-                  extra={
-                    <li>
-                      <a onClick={this.openCustomNodeModal}>Add Custom Node</a>
-                    </li>
-                  }
-                  disabled={nodeSelection === 'web3'}
-                  onChange={this.props.changeNodeIntent}
-                  size="smr"
-                  color="white"
-                  menuAlign="right"
-                />
+                <NodeDropdown openCustomNodeModal={this.openCustomNodeModal} />
               </div>
             </div>
           </section>

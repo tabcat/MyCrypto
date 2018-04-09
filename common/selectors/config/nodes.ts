@@ -1,11 +1,5 @@
 import { AppState } from 'reducers';
-import {
-  getStaticNetworkConfigs,
-  getCustomNetworkConfigs,
-  isStaticNetworkId
-} from 'selectors/config';
-import { CustomNodeConfig, StaticNodeConfig, StaticNodeId } from 'types/node';
-import { StaticNetworkIds } from 'types/network';
+import { NodeConfig, CustomNodeConfig, StaticNodeConfig, StaticNodeId } from 'types/node';
 
 const getConfig = (state: AppState) => state.config;
 
@@ -116,62 +110,13 @@ export interface NodeOption {
   hidden?: boolean;
 }
 
-export function getStaticNodeOptions(state: AppState): NodeOption[] {
-  const staticNetworkConfigs = getStaticNetworkConfigs(state);
-  return Object.entries(getStaticNodes(state)).map(([nodeId, node]: [string, StaticNodeConfig]) => {
-    const associatedNetwork =
-      staticNetworkConfigs[stripWeb3Network(node.network) as StaticNetworkIds];
-    const opt: NodeOption = {
-      isCustom: node.isCustom,
-      value: nodeId,
-      label: {
-        network: node.network,
-        service: node.service
-      },
-      color: associatedNetwork.color,
-      hidden: node.hidden
-    };
-    return opt;
-  });
-}
-
-export interface CustomNodeOption {
-  isCustom: true;
-  id: string;
-  value: string;
-  label: {
-    network: string;
-    nodeName: string;
+export function getAllNodes(
+  state: AppState
+): {
+  [key: string]: NodeConfig;
+} {
+  return {
+    ...getStaticNodes(state),
+    ...getCustomNodeConfigs(state)
   };
-  color?: string;
-  hidden?: boolean;
-}
-
-export function getCustomNodeOptions(state: AppState): CustomNodeOption[] {
-  const staticNetworkConfigs = getStaticNetworkConfigs(state);
-  const customNetworkConfigs = getCustomNetworkConfigs(state);
-  return Object.entries(getCustomNodeConfigs(state)).map(
-    ([_, node]: [string, CustomNodeConfig]) => {
-      const chainId = node.network;
-      const associatedNetwork = isStaticNetworkId(state, chainId)
-        ? staticNetworkConfigs[chainId]
-        : customNetworkConfigs[chainId];
-      const opt: CustomNodeOption = {
-        isCustom: node.isCustom,
-        value: node.id,
-        label: {
-          network: associatedNetwork.unit,
-          nodeName: node.name
-        },
-        color: associatedNetwork.isCustom ? undefined : associatedNetwork.color,
-        hidden: false,
-        id: node.id
-      };
-      return opt;
-    }
-  );
-}
-
-export function getNodeOptions(state: AppState) {
-  return [...getStaticNodeOptions(state), ...getCustomNodeOptions(state)];
 }
