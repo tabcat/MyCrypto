@@ -18,7 +18,7 @@ import {
 import { getNodeLib, getNetworkConfig } from 'selectors/config';
 import { getWalletInst } from 'selectors/wallet';
 import { INode } from 'libs/nodes';
-import { hexEncodeData } from 'libs/nodes/rpc/utils';
+import { hexEncodeData } from 'utils/rpc';
 import { getTransactionFields } from 'libs/transaction';
 import { TypeKeys as ConfigTypeKeys } from 'actions/config';
 import { TransactionData, TransactionReceipt, SavedTransaction } from 'types/transactions';

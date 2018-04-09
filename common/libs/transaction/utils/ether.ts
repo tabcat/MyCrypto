@@ -5,7 +5,7 @@ import { isValidETHAddress } from 'libs/validators';
 import { IFullWallet } from 'libs/wallet';
 import { translateRaw } from 'translations';
 import { ITransaction, IHexStrTransaction } from '../typings';
-import { hexEncodeQuantity, hexEncodeData } from 'libs/nodes/rpc/utils';
+import { hexEncodeQuantity, hexEncodeData } from 'utils/rpc';
 import { TransactionFieldValues } from 'selectors/transaction/helpers';
 
 // we dont include the signature paramaters because web3 transactions are unsigned
