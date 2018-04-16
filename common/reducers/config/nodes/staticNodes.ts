@@ -1,5 +1,5 @@
 import { TypeKeys, NodeAction } from 'actions/config';
-import { shepherdProvider } from 'libs/nodes';
+import { shepherdProvider, autoService } from 'libs/nodes';
 import { StaticNodesState } from './types';
 
 export const INITIAL_STATE: StaticNodesState = {
@@ -7,7 +7,7 @@ export const INITIAL_STATE: StaticNodesState = {
     network: 'ETH',
     isCustom: false,
     lib: shepherdProvider,
-    service: 'AUTO',
+    service: autoService,
     estimateGas: true
   },
   eth_mycrypto: {
@@ -43,7 +43,7 @@ export const INITIAL_STATE: StaticNodesState = {
   rop_auto: {
     network: 'Ropsten',
     isCustom: false,
-    service: 'AUTO',
+    service: autoService,
     lib: shepherdProvider,
     estimateGas: false
   },
@@ -58,7 +58,7 @@ export const INITIAL_STATE: StaticNodesState = {
   kov_auto: {
     network: 'Kovan',
     isCustom: false,
-    service: 'AUTO',
+    service: autoService,
     lib: shepherdProvider,
     estimateGas: false
   },
@@ -73,7 +73,7 @@ export const INITIAL_STATE: StaticNodesState = {
   rin_auto: {
     network: 'Rinkeby',
     isCustom: false,
-    service: 'AUTO',
+    service: autoService,
     lib: shepherdProvider,
     estimateGas: false
   },
@@ -95,7 +95,7 @@ export const INITIAL_STATE: StaticNodesState = {
   etc_auto: {
     network: 'ETC',
     isCustom: false,
-    service: 'AUTO',
+    service: autoService,
     lib: shepherdProvider,
     estimateGas: false
   },
@@ -117,7 +117,7 @@ export const INITIAL_STATE: StaticNodesState = {
   ubq_auto: {
     network: 'UBQ',
     isCustom: false,
-    service: 'AUTO',
+    service: autoService,
     lib: shepherdProvider,
     estimateGas: true
   },
@@ -132,7 +132,7 @@ export const INITIAL_STATE: StaticNodesState = {
   exp_auto: {
     network: 'EXP',
     isCustom: false,
-    service: 'AUTO',
+    service: autoService,
     lib: shepherdProvider,
     estimateGas: true
   },
@@ -146,7 +146,7 @@ export const INITIAL_STATE: StaticNodesState = {
   poa_auto: {
     network: 'POA',
     isCustom: false,
-    service: 'AUTO',
+    service: autoService,
     lib: shepherdProvider,
     estimateGas: true
   },
@@ -160,7 +160,7 @@ export const INITIAL_STATE: StaticNodesState = {
   tomo_auto: {
     network: 'TOMO',
     isCustom: false,
-    service: 'AUTO',
+    service: autoService,
     lib: shepherdProvider,
     estimateGas: true
   },
@@ -174,7 +174,7 @@ export const INITIAL_STATE: StaticNodesState = {
   ella_auto: {
     network: 'ELLA',
     isCustom: false,
-    service: 'AUTO',
+    service: autoService,
     lib: shepherdProvider,
     estimateGas: true
   },
@@ -189,7 +189,7 @@ export const INITIAL_STATE: StaticNodesState = {
   music_auto: {
     network: 'MUSIC',
     isCustom: false,
-    service: 'AUTO',
+    service: autoService,
     lib: shepherdProvider,
     estimateGas: true
   },

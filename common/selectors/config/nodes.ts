@@ -7,7 +7,7 @@ import {
 import { CustomNodeConfig, StaticNodeConfig, StaticNodeId } from 'types/node';
 import { StaticNetworkIds } from 'types/network';
 const getConfig = (state: AppState) => state.config;
-import { shepherdProvider, INode, stripWeb3Network } from 'libs/nodes';
+import { shepherdProvider, INode, stripWeb3Network, autoService } from 'libs/nodes';
 
 export const getNodes = (state: AppState) => getConfig(state).nodes;
 
@@ -104,21 +104,31 @@ export interface NodeOption {
 
 export function getStaticNodeOptions(state: AppState): NodeOption[] {
   const staticNetworkConfigs = getStaticNetworkConfigs(state);
-  return Object.entries(getStaticNodes(state)).map(([nodeId, node]: [string, StaticNodeConfig]) => {
-    const associatedNetwork =
-      staticNetworkConfigs[stripWeb3Network(node.network) as StaticNetworkIds];
-    const opt: NodeOption = {
-      isCustom: node.isCustom,
-      value: nodeId,
-      label: {
-        network: node.network,
-        service: node.service
-      },
-      color: associatedNetwork.color,
-      hidden: node.hidden
-    };
-    return opt;
-  });
+  const staticNodes = getStaticNodes(state);
+  const networkCount: { [network: string]: number } = {};
+
+  return (
+    Object.entries(staticNodes)
+      .map(([nodeId, node]: [string, StaticNodeConfig]) => {
+        const network = node.network;
+        const associatedNetwork =
+          staticNetworkConfigs[stripWeb3Network(network) as StaticNetworkIds];
+        const opt: NodeOption = {
+          isCustom: node.isCustom,
+          value: nodeId,
+          label: {
+            network,
+            service: node.service
+          },
+          color: associatedNetwork.color,
+          hidden: node.hidden
+        };
+        networkCount[network] = networkCount[network] ? networkCount[network] + 1 : 1;
+        return opt;
+      })
+      // Filter out networks that only have one option, only show auto
+      .filter(opt => networkCount[opt.label.network] !== 2 || opt.label.service === autoService)
+  );
 }
 
 export interface CustomNodeOption {

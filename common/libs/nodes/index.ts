@@ -58,6 +58,7 @@ export const getShepherdNetwork = () =>
 export const makeWeb3Network = (network: string) => `WEB3_${network}`;
 export const stripWeb3Network = (network: string) => network.replace('WEB3_', '');
 export const isAutoNode = (nodeName: string) => nodeName.endsWith('_auto') || nodeName === 'web3';
+export const autoService = 'Auto Balanced';
 
 const regEthConf = makeProviderConfig({ network: 'ETH' });
 shepherd.useProvider('rpc', 'eth_mycrypto', regEthConf, 'https://api.mycryptoapi.com/eth');

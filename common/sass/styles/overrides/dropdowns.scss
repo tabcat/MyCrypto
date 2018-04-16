@@ -1,5 +1,5 @@
 // Button overrides
-@import "common/sass/variables";
+@import 'common/sass/variables';
 
 .dropdown {
   .caret {
@@ -15,9 +15,17 @@ span.dropdown {
 .dropdown-menu {
   padding: 0;
   border: none;
+  max-height: 80vh;
+  overflow: auto;
+  font-size: $font-size-small;
 
   > li {
     margin: 0;
+
+    small {
+      font-size: $font-size-xs;
+      opacity: 0.6;
+    }
 
     &:first-child {
       padding-top: 4px;
