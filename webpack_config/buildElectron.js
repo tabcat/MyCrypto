@@ -58,7 +58,7 @@ async function build() {
         },
         linux: {
           category: 'Finance',
-          icon: path.join(config.path.electron, 'icons/icon.png'),
+          icon: path.join(config.path.electron, 'icons/256x256.png'),
           compression
         },
         // IMPORTANT: Prevents from auto publishing to GitHub in CI environments
