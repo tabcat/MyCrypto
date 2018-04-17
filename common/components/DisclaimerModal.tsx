@@ -15,7 +15,13 @@ const DisclaimerModal: React.SFC<Props> = ({ isOpen, handleClose }) => {
     { text: translate('ACTION_10'), type: 'default', onClick: handleClose }
   ];
   return (
-    <Modal isOpen={isOpen} title="Disclaimer" buttons={buttons} handleClose={handleClose}>
+    <Modal
+      isOpen={isOpen}
+      title="Disclaimer"
+      buttons={buttons}
+      handleClose={handleClose}
+      data-cy="Disclamer"
+    >
       <p>
         <b>Be safe & secure: </b>
         <HelpLink article={HELP_ARTICLE.SECURING_YOUR_ETH}>

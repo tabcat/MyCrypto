@@ -50,6 +50,7 @@ export default class ModalBody extends React.Component<Props> {
         className="Modal"
         style={modalStyle}
         role="dialog"
+        data-cy="Modal"
         aria-labelledby="Modal-header-title"
         ref={div => {
           this.modal = div as HTMLElement;
@@ -93,6 +94,7 @@ export default class ModalBody extends React.Component<Props> {
           onClick={btn.onClick}
           key={idx}
           disabled={disableButtons || btn.disabled}
+          data-cy="Modal-Button"
         >
           {btn.text}
         </button>

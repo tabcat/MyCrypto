@@ -23,7 +23,7 @@ export default class BetaAgreement extends React.PureComponent<{}, State> {
     const isFading = this.state.isFading ? 'is-fading' : '';
 
     return (
-      <div className={`BetaAgreement ${isFading}`}>
+      <div className={`BetaAgreement ${isFading}`} data-cy="BetaAgreement">
         <div className="BetaAgreement-content">
           <h2>Welcome to the New MyCrypto Beta Release Candidate!</h2>
           <p>
@@ -46,10 +46,15 @@ export default class BetaAgreement extends React.PureComponent<{}, State> {
             <button
               className="BetaAgreement-content-buttons-btn is-continue"
               onClick={this.doContinue}
+              data-cy="BetaAgreement-Accept"
             >
               Yes, continue to the Beta RC
             </button>
-            <button className="BetaAgreement-content-buttons-btn is-reject" onClick={this.reject}>
+            <button
+              className="BetaAgreement-content-buttons-btn is-reject"
+              onClick={this.reject}
+              data-cy="BetaAgreement-Reject"
+            >
               No, take me to the production site
             </button>
           </div>

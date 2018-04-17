@@ -25,7 +25,7 @@ class WebTemplate extends Component<Props, {}> {
     const { isUnavailableOffline, children, isOffline, latestBlock } = this.props;
 
     return (
-      <div className="WebTemplate">
+      <div className="WebTemplate" data-cy="WebTemplate">
         <Query
           params={['network']}
           withQuery={({ network }) => (

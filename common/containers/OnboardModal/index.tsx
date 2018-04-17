@@ -119,7 +119,7 @@ class OnboardModal extends React.Component<Props, State> {
     const steps = new Array(NUMBER_OF_SLIDES).fill({});
 
     return (
-      <div className="OnboardModal">
+      <div className="OnboardModal" data-cy="OnboardModal">
         <Modal
           isOpen={isOpen}
           buttons={buttons}

@@ -13,7 +13,7 @@ class OnboardSlide extends React.Component<Props> {
   public render() {
     const { header, subheader, content, image, imageSide } = this.props;
     return (
-      <div className="OnboardSlide">
+      <div className="OnboardSlide" data-cy="OnboardSlide">
         <h3 className="OnboardSlide-header">{header}</h3>
         {subheader && <p className="OnboardSlide-subheader">{subheader}</p>}
         <div className="OnboardSlide-body">
