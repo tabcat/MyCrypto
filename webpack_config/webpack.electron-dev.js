@@ -9,7 +9,8 @@ const electronConfig = {
   target: 'electron-main',
   mode: 'development',
   entry: {
-    main: path.join(config.path.electron, 'main/index.ts')
+    main: path.join(config.path.electron, 'main/index.ts'),
+    preload: path.join(config.path.electron, 'preload/index.ts')
   },
   module: {
     rules: [config.typescriptRule]
