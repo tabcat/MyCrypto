@@ -1,8 +1,11 @@
-import { WalletLib } from 'shared/enclave/types';
+/* tslint:disable max-classes-per-file */
 import { DeviceClientManager } from '@keepkey/device-client/dist/device-client-manager';
 import { NodeVector } from '@keepkey/device-client/dist/node-vector';
+import { WalletLib } from 'shared/enclave/types';
+import NodeHidHelper from './NodeHidHelper';
 
 const dcm = new DeviceClientManager();
+dcm.hidHelper = new NodeHidHelper();
 
 const KeepKey: WalletLib = {
   async getChainCode() {

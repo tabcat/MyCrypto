@@ -75,6 +75,7 @@
     "X_TREZOR": "TREZOR ",
     "ADD_TREZOR_SCAN": "Connect to TREZOR ",
     "X_KEEPKEY": "KeepKey",
+    "ADD_KEEPKEY_SCAN": "Connect to KeepKey ",
     "X_PARITYSIGNER": "Parity Signer ",
     "ADD_PARITY_DESC": "Connect & sign via your Parity Signer mobile app ",
     "ADD_PARITY_1": "Transaction canceled ",

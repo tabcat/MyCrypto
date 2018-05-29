@@ -63,7 +63,7 @@ class KeepKeyDecryptClass extends PureComponent<Props, State> {
               Unlocking...
             </div>
           ) : (
-            translate('ADD_TREZOR_SCAN')
+            translate('ADD_KEEPKEY_SCAN')
           )}
         </button>
 
