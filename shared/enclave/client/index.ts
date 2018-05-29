@@ -3,6 +3,8 @@ import {
   EnclaveMethods,
   GetChainCodeParams,
   GetChainCodeResponse,
+  GetAddressParams,
+  GetAddressResponse,
   SignTransactionParams,
   SignTransactionResponse,
   SignMessageParams,
@@ -14,6 +16,10 @@ import {
 const api = {
   getChainCode(params: GetChainCodeParams) {
     return makeRequest<GetChainCodeResponse>(EnclaveMethods.GET_CHAIN_CODE, params);
+  },
+
+  getAddress(params: GetAddressParams) {
+    return makeRequest<GetAddressResponse>(EnclaveMethods.GET_ADDRESS, params);
   },
 
   signTransaction(params: SignTransactionParams) {

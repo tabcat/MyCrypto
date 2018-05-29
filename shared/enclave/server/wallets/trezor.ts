@@ -16,6 +16,10 @@ const Trezor: WalletLib = {
     // return { chainCode: 'test', publicKey: 'test' };
   },
 
+  async getAddress() {
+    throw new Error('TREZOR does not support getAddress');
+  },
+
   async signTransaction() {
     throw new Error('Not yet implemented');
   },

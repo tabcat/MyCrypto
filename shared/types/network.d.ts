@@ -36,6 +36,7 @@ interface NetworkContract {
 interface DPathFormats {
   trezor?: DPath;
   ledgerNanoS?: DPath;
+  keepkey?: DPath;
   mnemonicPhrase: DPath;
 }
 

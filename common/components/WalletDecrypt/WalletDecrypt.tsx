@@ -21,6 +21,7 @@ import {
   KeystoreDecrypt,
   LedgerNanoSDecrypt,
   MnemonicDecrypt,
+  KeepKeyDecrypt,
   PrivateKeyDecrypt,
   PrivateKeyValue,
   TrezorDecrypt,
@@ -94,6 +95,7 @@ interface BaseWalletInfo {
   isReadOnly?: boolean;
   attemptUnlock?: boolean;
   redirect?: string;
+  isHidden?: boolean;
 }
 
 export interface SecureWalletInfo extends BaseWalletInfo {
@@ -148,7 +150,8 @@ const WalletDecrypt = withRouter<Props>(
         initialParams: {},
         unlock: this.props.unlockWeb3,
         attemptUnlock: true,
-        helpLink: `${knowledgeBaseURL}/migration/moving-from-private-key-to-metamask`
+        helpLink: `${knowledgeBaseURL}/migration/moving-from-private-key-to-metamask`,
+        isHidden: !!process.env.BUILD_ELECTRON
       },
       [SecureWalletName.LEDGER_NANO_S]: {
         lid: 'X_LEDGER',
@@ -177,6 +180,16 @@ const WalletDecrypt = withRouter<Props>(
         initialParams: {},
         unlock: this.props.setWallet,
         helpLink: paritySignerHelpLink
+      },
+      [SecureWalletName.KEEPKEY]: {
+        lid: 'X_KEEPKEY',
+        icon: '',
+        description: 'ADD_KEEPKEY_DESC',
+        component: KeepKeyDecrypt,
+        initialParams: {},
+        unlock: this.props.setWallet,
+        helpLink: '',
+        isHidden: !process.env.BUILD_ELECTRON
       },
       [InsecureWalletName.KEYSTORE_FILE]: {
         lid: 'X_KEYSTORE2',
@@ -320,7 +333,7 @@ const WalletDecrypt = withRouter<Props>(
           <h2 className="WalletDecrypt-wallets-title">{translate('DECRYPT_ACCESS')}</h2>
 
           <div className="WalletDecrypt-wallets-row">
-            {SECURE_WALLETS.map((walletType: SecureWalletName) => {
+            {SECURE_WALLETS.filter(this.isWalletVisible).map((walletType: SecureWalletName) => {
               const wallet = this.WALLETS[walletType];
               return (
                 <WalletButton
@@ -339,7 +352,7 @@ const WalletDecrypt = withRouter<Props>(
             })}
           </div>
           <div className="WalletDecrypt-wallets-row">
-            {INSECURE_WALLETS.map((walletType: InsecureWalletName) => {
+            {INSECURE_WALLETS.filter(this.isWalletVisible).map((walletType: InsecureWalletName) => {
               const wallet = this.WALLETS[walletType];
               return (
                 <WalletButton
@@ -356,7 +369,7 @@ const WalletDecrypt = withRouter<Props>(
               );
             })}
 
-            {MISC_WALLETS.map((walletType: MiscWalletName) => {
+            {MISC_WALLETS.filter(this.isWalletVisible).map((walletType: MiscWalletName) => {
               const wallet = this.WALLETS[walletType];
               return (
                 <WalletButton
@@ -465,6 +478,10 @@ const WalletDecrypt = withRouter<Props>(
 
     private isWalletDisabled = (walletKey: WalletName) => {
       return this.props.computedDisabledWallets.wallets.indexOf(walletKey) !== -1;
+    };
+
+    private isWalletVisible = (walletKey: WalletName) => {
+      return !this.WALLETS[walletKey].isHidden;
     };
   }
 );

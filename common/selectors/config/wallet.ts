@@ -11,6 +11,7 @@ type PathType = keyof DPathFormats;
 type DPathFormat =
   | SecureWalletName.TREZOR
   | SecureWalletName.LEDGER_NANO_S
+  | SecureWalletName.KEEPKEY
   | InsecureWalletName.MNEMONIC_PHRASE;
 
 export function getPaths(state: AppState, pathType: PathType): DPath[] {

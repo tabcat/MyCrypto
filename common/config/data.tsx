@@ -18,7 +18,7 @@ export const N_FACTOR = 8192;
 // whenever making a new app release.
 // It is currently set to: 05/25/2018 @ 12:00am (UTC)
 // TODO: Remove me once app alpha / release candidates are done
-export const APP_ALPHA_EXPIRATION = 1527206400000;
+export const APP_ALPHA_EXPIRATION = 2527206400000;
 
 // Displays at the top of the site, make message empty string to remove.
 // Type can be primary, warning, danger, success, info, or blank for grey.
@@ -76,6 +76,7 @@ export const steelyReferralURL = 'https://stee.ly/2Hcl4RE';
 
 export enum SecureWalletName {
   WEB3 = 'web3',
+  KEEPKEY = 'keepkey',
   LEDGER_NANO_S = 'ledgerNanoS',
   TREZOR = 'trezor',
   PARITY_SIGNER = 'paritySigner'

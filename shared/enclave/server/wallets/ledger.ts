@@ -36,6 +36,10 @@ const Ledger: WalletLib = {
     }
   },
 
+  async getAddress() {
+    throw new Error('Ledger does not support getAddress');
+  },
+
   async signTransaction(tx, path) {
     const app = await getEthApp();
     const ethTx = new EthTx({
