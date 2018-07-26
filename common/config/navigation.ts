@@ -46,6 +46,10 @@ export const navigationLinks: NavigationLink[] = [
     disabled: !process.env.BUILD_ELECTRON
   },
   {
+    name: 'Exchange',
+    to: '/exchange'
+  },
+  {
     name: 'NAV_HELP',
     to: knowledgeBaseURL,
     external: true
