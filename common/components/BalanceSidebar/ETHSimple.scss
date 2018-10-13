@@ -1,0 +1,71 @@
+@import 'common/sass/variables';
+@import 'common/sass/mixins';
+
+.ENSPortfolio {
+  //padding: 0 20px 20px 20px;
+  //border: 1px solid color(control-border);
+
+  &-title {
+    margin-top: 0px;
+    //padding: 0 15px;
+    //display: block;
+    //width: 250px;
+    //background: color(pane-bg);
+  }
+
+  &-logo {
+    float: right;
+    max-width: 160px;
+    width: 100%;
+    height: 32px;
+    background-image: url('~assets/images/ethsimple-banner-inverted.svg');
+    background-repeat: no-repeat;
+    display: block;
+    background-size: cover;
+    margin-top: 3px;
+
+    @include theme('dark') {
+      background-image: url('~assets/images/ethsimple-banner-inverted.svg');
+    }
+  }
+
+  &-description {
+    font-weight: 300;
+    font-size: 16px;
+    padding: 2px 0 6px;
+    text-align: justify;
+    line-height: 1.5;
+  }
+
+  &-field-title {
+    position: relative;
+    white-space: nowrap;
+
+    &-help {
+      margin-top: 3px;
+      margin-left: 5px;
+      pointer-events: none;
+    }
+
+    &-text {
+      display: inline-block;
+    }
+
+    &-tooltip {
+      display: inline-block;
+      white-space: normal;
+      @include show-tooltip-on-hover;
+    }
+
+    &-wrap {
+      white-space: normal;
+    }
+  }
+}
+
+.vcenter-sm {
+  @media (min-width: $screen-lg) {
+    display: flex;
+    align-items: center;
+  }
+}

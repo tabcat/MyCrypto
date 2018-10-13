@@ -64,6 +64,7 @@ class AccountAddress extends React.Component<Props, State> {
     const { copied } = this.state;
     const labelContent = this.generateLabelContent();
     const labelButton = this.generateLabelButton();
+    const reverseResolverButton = this.generateReverseResolverButton();
     const addressClassName = `AccountInfo-address-addr ${
       addressLabel ? 'AccountInfo-address-addr--small' : ''
     }`;
@@ -91,6 +92,9 @@ class AccountAddress extends React.Component<Props, State> {
             </CopyToClipboard>
             <div className="AccountInfo-label" title={translateRaw('EDIT_LABEL_2')}>
               {labelButton}
+            </div>
+            <div className="AccountInfo-label" title={translateRaw('SET_REVERSE_RESOLVER')}>
+              {reverseResolverButton}
             </div>
           </div>
         </div>
@@ -167,6 +171,32 @@ class AccountAddress extends React.Component<Props, State> {
           onClick={this.startEditingLabel}
         >
           {addressLabel ? translate('EDIT_LABEL') : translate('ADD_LABEL_9')}
+        </span>
+      </React.Fragment>
+    );
+
+    return labelButton;
+  };
+
+  private generateReverseResolverButton = () => {
+    const { addressLabel } = this.props;
+    const { editingLabel } = this.state;
+    const labelButton = editingLabel ? (
+      <React.Fragment>
+        <i className="fa fa-save" />
+        <span role="button" title={translateRaw('SAVE_LABEL')} onClick={this.stopEditingLabel}>
+          {translate('SAVE_LABEL')}
+        </span>
+      </React.Fragment>
+    ) : (
+      <React.Fragment>
+        <i className="fa fa-user-circle-o AccountInfo-set-reverse-resolver" />
+        <span
+          role="button"
+          title={addressLabel ? translateRaw('EDIT_LABEL') : translateRaw('SET_REVERSE_RESOLVER')}
+          onClick={this.startEditingLabel}
+        >
+          {addressLabel ? translate('EDIT_LABEL') : translate('SET_REVERSE_RESOLVER')}
         </span>
       </React.Fragment>
     );

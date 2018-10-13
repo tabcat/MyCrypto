@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="160px" height="32px" viewBox="0 0 160 32" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 43.2 (39069) - http://www.bohemiancoding.com/sketch -->
+    <title>ethsimple-banner</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="ethsimple-banner">
+            <rect id="Rectangle-2" fill="#3BF932" x="0" y="0" width="160" height="32" rx="16"></rect>
+            <text id="ETHSimple" font-family="Montserrat-Medium, Montserrat" font-size="20" font-weight="400" letter-spacing="1" fill="#FFFFFF">
+                <tspan x="19.76" y="23">ETHSimple</tspan>
+            </text>
+            <text id="Powered-By:" font-family="Montserrat-Light, Montserrat" font-size="6" font-weight="300" letter-spacing="0.100000001" fill="#FFFFFF">
+                <tspan x="21" y="6">Powered By:</tspan>
+            </text>
+        </g>
+    </g>
+</svg>

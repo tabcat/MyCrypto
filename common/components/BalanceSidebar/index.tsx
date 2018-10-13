@@ -5,6 +5,7 @@ import { AppState } from 'features/reducers';
 import { walletSelectors } from 'features/wallet';
 import EquivalentValues from './EquivalentValues';
 import AccountInfo from './AccountInfo';
+import ETHSimple from './ETHSimple';
 import Promos from './Promos';
 import TokenBalances from './TokenBalances';
 
@@ -30,6 +31,10 @@ export class BalanceSidebar extends React.Component<StateProps> {
       {
         name: 'Account Info',
         content: <AccountInfo wallet={wallet} />
+      },
+      {
+        name: 'ETHSimple',
+        content: <ETHSimple />
       },
       {
         name: 'Promos',
