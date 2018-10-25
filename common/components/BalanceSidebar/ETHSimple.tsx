@@ -1,14 +1,21 @@
 import React from 'react';
 import { connect } from 'react-redux';
+
 import { AppState } from '../../features/reducers';
 import { isValidENSAddress } from '../../libs/validators';
 import { ensActions } from 'features/ens';
 import { Input } from 'components/ui';
-import './ETHSimple.scss';
 import { translate, translateRaw } from '../../translations';
 import { walletSelectors } from 'features/wallet';
 import Markdown from 'react-markdown';
 import NewTabLink from 'components/ui/NewTabLink';
+// import { makeTransaction, getTransactionFields, IHexStrTransaction } from 'libs/transaction';
+// import {
+//   transactionFieldsActions,
+//   transactionFieldsSelectors,
+//   transactionNetworkActions
+// } from 'features/transaction';
+import './ETHSimple.scss';
 
 interface State {
   domainToCheck: string;
@@ -137,10 +144,99 @@ class ETHSimpleClass extends React.Component<Props, State> {
     );
   }
 
+  // IHexStrWeb3Transaction => makeTransaction => signTx
+
+  // getTransaction
+
+  // const transactionOptions = {
+  //   to: getSchedulerAddress(scheduleType.value, configSelectors.getNetworkConfig(state)),
+  //   data: transactionData,
+  //   gasLimit: EAC_SCHEDULING_CONFIG.SCHEDULING_GAS_LIMIT,
+  //   gasPrice: gasPrice.value,
+  //   nonce: Nonce('0'),
+  //   value: endowment
+  // };
+
+  // const schedulingTransaction: EthTx = makeTransaction(transactionOptions);
+
+  //   export const getSchedulingTransaction = (state: AppState): IGetTransaction => {
+  //   const { isFullTransaction } = getTransaction(state);
+
+  //   const currentTo = getCurrentTo(state);
+  //   const currentValue = getCurrentValue(state);
+  //   const nonce = transactionFieldsSelectors.getNonce(state);
+  //   const gasPrice = transactionFieldsSelectors.getGasPrice(state);
+  //   const timeBounty = scheduleSelectors.getTimeBounty(state);
+  //   const scheduleGasPrice = scheduleSelectors.getScheduleGasPrice(state);
+  //   const scheduleGasLimit = scheduleSelectors.getScheduleGasLimit(state);
+  //   const scheduleType = scheduleSelectors.getScheduleType(state);
+
+  //   const endowment = calcEACEndowment(
+  //     scheduleGasLimit.value,
+  //     currentValue.value,
+  //     scheduleGasPrice.value,
+  //     timeBounty.value
+  //   );
+
+  //   let transactionData = null;
+
+  //   const transactionFullAndValid = isFullTransaction && isSchedulingTransactionValid(state);
+
+  //   if (transactionFullAndValid) {
+  //     const deposit = scheduleSelectors.getScheduleDeposit(state);
+  //     const scheduleTimestamp = scheduleSelectors.getScheduleTimestamp(state);
+  //     const windowSize = scheduleSelectors.getWindowSize(state);
+  //     const callData = transactionFieldsSelectors.getData(state);
+  //     const scheduleTimezone = scheduleSelectors.getScheduleTimezone(state);
+  //     const windowStart = scheduleSelectors.getWindowStart(state);
+
+  //     transactionData = getScheduleData(
+  //       currentTo.raw,
+  //       callData.raw,
+  //       scheduleGasLimit.value,
+  //       currentValue.value,
+  //       scheduleHelpers.windowSizeBlockToMin(windowSize.value, scheduleType.value),
+  //       scheduleHelpers.calculateWindowStart(
+  //         scheduleType.value,
+  //         scheduleTimestamp,
+  //         scheduleTimezone.value,
+  //         windowStart.value
+  //       ),
+  //       scheduleGasPrice.value,
+  //       timeBounty.value,
+  //       deposit.value
+  //     );
+  //   }
+
+  //   const transactionOptions = {
+  //     to: getSchedulerAddress(scheduleType.value, configSelectors.getNetworkConfig(state)),
+  //     data: transactionData,
+  //     gasLimit: EAC_SCHEDULING_CONFIG.SCHEDULING_GAS_LIMIT,
+  //     gasPrice: gasPrice.value,
+  //     nonce: Nonce('0'),
+  //     value: endowment
+  //   };
+
+  //   if (nonce) {
+  //     transactionOptions.nonce = Nonce(nonce.raw);
+  //   }
+
+  //   const schedulingTransaction: EthTx = makeTransaction(transactionOptions);
+
+  //   return {
+  //     transaction: schedulingTransaction,
+  //     isFullTransaction: transactionFullAndValid
+  //   };
+  // };
+
+  // signTransaction /libs/utils/transactions/index
+
   // add delay to namehash computation / getting the availability
   private onChange = (event: React.FormEvent<HTMLInputElement>) => {
     const domainToCheck = event.currentTarget.value.toLowerCase().trim();
-    const isValidDomain = isValidENSAddress(domainToCheck + '.ethsimple.eth');
+    const isValidDomain = isValidENSAddress(
+      domainToCheck + (domainToCheck.length > 0 ? '.ethsimple.eth' : '')
+    );
     const description = this.makeDescription(domainToCheck);
     this.setState({
       domainToCheck,
@@ -152,7 +248,12 @@ class ETHSimpleClass extends React.Component<Props, State> {
   private onSubmit = (ev: React.FormEvent<HTMLElement>) => {
     ev.preventDefault();
     const { isValidDomain, domainToCheck } = this.state;
-    return isValidDomain && this.props.resolveDomainRequested(domainToCheck + '.ethsimple.eth');
+    return (
+      isValidDomain &&
+      this.props.resolveDomainRequested(
+        domainToCheck + (domainToCheck.length > 0 ? '.ethsimple.eth' : '')
+      )
+    );
   };
 
   private onFocus = () => this.setState({ isFocused: true });
@@ -194,8 +295,6 @@ function mapStateToProps(state: AppState) {
     wallet: walletSelectors.getWalletInst(state)
   };
 }
-
-// export default connect(mapStateToProps, {})(ETHSimpleClass);
 
 export default connect(mapStateToProps, {
   resolveDomainRequested: ensActions.resolveDomainRequested
