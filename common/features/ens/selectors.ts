@@ -1,10 +1,10 @@
-import { IOwnedDomainRequest, IBaseDomainRequest } from 'libs/ens';
+import { IOwnedDomainRequest, IBaseDomainRequest, IBaseSubdomainRequest } from 'libs/ens';
 import { isCreationAddress } from 'libs/validators';
 import { AppState } from 'features/reducers';
 import { ensDomainRequestsTypes, ensDomainRequestsSelectors } from './domainRequests';
 import { ensDomainSelectorSelectors } from './domainSelector';
 
-const isOwned = (data: IBaseDomainRequest): data is IOwnedDomainRequest => {
+const isOwned = (data: IBaseDomainRequest | IBaseSubdomainRequest): data is IOwnedDomainRequest => {
   return !!(data as IOwnedDomainRequest).ownerAddress;
 };
 

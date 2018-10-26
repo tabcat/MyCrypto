@@ -4,6 +4,7 @@ import { connect } from 'react-redux';
 import { AppState } from '../../features/reducers';
 import { isValidENSAddress } from '../../libs/validators';
 import { ensActions } from 'features/ens';
+import { NameState } from 'libs/ens';
 import { Input } from 'components/ui';
 import { translate, translateRaw } from '../../translations';
 import { walletSelectors } from 'features/wallet';
@@ -18,9 +19,12 @@ import NewTabLink from 'components/ui/NewTabLink';
 import './ETHSimple.scss';
 
 interface State {
+  subdomain: string;
   domainToCheck: string;
   isValidDomain: boolean;
+  isAvailableDomain: boolean;
   isFocused: boolean;
+  isResolving: boolean;
   isLoading: boolean;
   description: React.ReactElement<any>;
 }
@@ -35,7 +39,10 @@ class ETHSimpleClass extends React.Component<Props, State> {
   public state = {
     isFocused: false,
     isValidDomain: false,
+    isAvailableDomain: false,
+    isResolving: false,
     isLoading: false,
+    subdomain: '',
     domainToCheck: '',
     description: this.buildDesc()
   };
@@ -71,43 +78,27 @@ class ETHSimpleClass extends React.Component<Props, State> {
 
   public render() {
     const { domainRequests } = this.props;
-    const { isValidDomain, domainToCheck, description } = this.state;
+    const {
+      isLoading,
+      isValidDomain,
+      isAvailableDomain,
+      subdomain,
+      domainToCheck,
+      description
+    } = this.state;
     const req = domainRequests[domainToCheck];
-    const isLoading = req && !req.data && !req.error;
+    const isResolving = req && !req.data && !req.error;
 
     return (
       <div className="ETHSimple">
-        {/*<h5 className="ENSPortfolio-title">My Domains</h5>*/}
         <h5 className="ETHSimple-title">{translate('ETHSIMPLE_TITLE')}</h5>
-
         <div className="ETHSimple-description">{description}</div>
-
-        {/*<div className="row form-group">*/}
-        {/*<div className="col-xs-12 col-md-6">*/}
-        {/*<hr className="hidden-md hidden-lg" />*/}
-        {/*</div>*/}
-        {/*<div className="col-xs-12 col-md-6">*/}
-        {/*</div>*/}
-        {/*</div>*/}
-
-        {/*<div className="row form-group">*/}
-        {/*<div className="col-xs-6">*/}
-        {/*</div>*/}
-        {/*<div className="col-xs-6">*/}
-        {/*</div>*/}
-        {/*</div>*/}
-
-        {/*<div className="row form-group">*/}
-        {/*<div className="col-xs-12 AdvancedGas-data">*/}
-        {/*</div>*/}
-        {/*</div>*/}
-
         <form className="ETHSimpleInput" onSubmit={this.onSubmit}>
           <div className="input-group-wrapper">
             <label className="input-group input-group-inline ETHSimpleInput-name">
               <Input
-                value={domainToCheck}
-                isValid={!!domainToCheck && isValidDomain}
+                value={subdomain}
+                isValid={!!subdomain && isValidDomain && isAvailableDomain}
                 className="border-rad-right-0"
                 type="text"
                 placeholder="mydomain"
@@ -118,14 +109,17 @@ class ETHSimpleClass extends React.Component<Props, State> {
               />
               <span className="input-group-addon">.ethsimple.eth</span>
             </label>
-            {domainToCheck &&
+            {subdomain &&
               !isValidDomain && (
                 <p className="help-block is-invalid">{translate('ENS_SUBDOMAIN_INVALID_INPUT')}</p>
               )}
+            {subdomain &&
+              !isAvailableDomain &&
+              isValidDomain && <p className="help-block is-invalid">Domain unavailable</p>}
           </div>
           <button
             className="ETHSimple-button btn btn-primary btn-block"
-            disabled={!isValidDomain || isLoading}
+            disabled={!isValidDomain || isResolving || isLoading || !isAvailableDomain}
           >
             {translate('ETHSIMPLE_ACTION')}
           </button>
@@ -231,29 +225,50 @@ class ETHSimpleClass extends React.Component<Props, State> {
 
   // signTransaction /libs/utils/transactions/index
 
+  componentDidUpdate(prevProps: Props) {
+    const { domainRequests } = this.props;
+    if (domainRequests !== prevProps.domainRequests) {
+      const { domainToCheck } = this.state;
+      const req = domainRequests[domainToCheck];
+      const isResolving = req && !req.data && !req.error;
+      const isAvailableDomain =
+        !isResolving && req && req.data && !req.error && req.data.mode !== NameState.Open
+          ? false
+          : true;
+      this.setState({
+        isResolving,
+        isAvailableDomain
+      });
+    }
+  }
+
   // add delay to namehash computation / getting the availability
   private onChange = (event: React.FormEvent<HTMLInputElement>) => {
-    const domainToCheck = event.currentTarget.value.toLowerCase().trim();
-    const isValidDomain = isValidENSAddress(
-      domainToCheck + (domainToCheck.length > 0 ? '.ethsimple.eth' : '')
-    );
-    const description = this.makeDescription(domainToCheck);
+    const subdomain = event.currentTarget.value.toLowerCase().trim();
+    const domainToCheck = subdomain + (subdomain.length > 0 ? '.ethsimple' : '');
+    const isValidDomain = isValidENSAddress(domainToCheck + '.eth');
+    let isAvailableDomain = this.state.isAvailableDomain;
+    let description = this.state.description;
+    if (isValidDomain) {
+      this.props.resolveDomainRequested(domainToCheck);
+      isAvailableDomain = true;
+      description = this.makeDescription(subdomain);
+    }
     this.setState({
+      subdomain,
       domainToCheck,
       isValidDomain,
+      isAvailableDomain,
       description
     });
   };
 
   private onSubmit = (ev: React.FormEvent<HTMLElement>) => {
     ev.preventDefault();
-    const { isValidDomain, domainToCheck } = this.state;
-    return (
-      isValidDomain &&
-      this.props.resolveDomainRequested(
-        domainToCheck + (domainToCheck.length > 0 ? '.ethsimple.eth' : '')
-      )
-    );
+    const { isValidDomain } = this.state;
+    if (isValidDomain) {
+      // tx
+    }
   };
 
   private onFocus = () => this.setState({ isFocused: true });

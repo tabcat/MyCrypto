@@ -5,7 +5,13 @@ import ethUtil from 'ethereumjs-util';
 import networkConfigs from 'libs/ens/networkConfigs';
 import { INode } from 'libs/nodes/INode';
 import ENS from 'libs/ens/contracts';
-import { IDomainData, NameState, getNameHash, IBaseDomainRequest } from 'libs/ens';
+import {
+  IDomainData,
+  NameState,
+  getNameHash,
+  IBaseDomainRequest,
+  IBaseSubdomainRequest
+} from 'libs/ens';
 import * as configNodesSelectors from 'features/config/nodes/selectors';
 
 //#region Make & Decode
@@ -24,7 +30,7 @@ export function* makeEthCallAndDecode({ to, data, decoder }: Params): SagaIterat
 //#endregion Make & Decode
 
 //#region Mode Map
-const { main } = networkConfigs;
+const { ropsten, main } = networkConfigs;
 
 function* nameStateOwned({ deedAddress }: IDomainData<NameState.Owned>, nameHash: string) {
   // Return the owner's address, and the resolved address if it exists
@@ -90,24 +96,80 @@ const modeMap: IModeMap = {
 };
 
 export function* resolveDomainRequest(name: string): SagaIterator {
+  let subdomain = false;
+  if (name.split('.').length > 1) subdomain = true;
+
   const hash = ethUtil.sha3(name);
   const nameHash = getNameHash(`${name}.eth`);
 
-  const domainData: typeof ENS.auction.entries.outputType = yield call(makeEthCallAndDecode, {
-    to: main.public.ethAuction,
-    data: ENS.auction.entries.encodeInput({ _hash: hash }),
-    decoder: ENS.auction.entries.decodeOutput
-  });
-  const nameStateHandler = modeMap[domainData.mode];
-  const result = yield call(nameStateHandler, domainData, nameHash);
+  if (!subdomain) {
+    const domainData: typeof ENS.auction.entries.outputType = yield call(makeEthCallAndDecode, {
+      to: main.public.ethAuction,
+      data: ENS.auction.entries.encodeInput({ _hash: hash }),
+      decoder: ENS.auction.entries.decodeOutput
+    });
+    const nameStateHandler = modeMap[domainData.mode];
+    const result = yield call(nameStateHandler, domainData, nameHash);
 
-  const returnValue: IBaseDomainRequest = {
-    name,
-    ...domainData,
-    ...result,
-    labelHash: ethUtil.addHexPrefix(hash.toString('hex')),
-    nameHash
-  };
-  return returnValue;
+    const returnValue: IBaseDomainRequest = {
+      name,
+      ...domainData,
+      ...result,
+      labelHash: ethUtil.addHexPrefix(hash.toString('hex')),
+      nameHash
+    };
+    return returnValue;
+  } else {
+    let ownerAddr = '0x0';
+    let resolvedAddress = '0x0';
+    let mode = NameState.Open;
+
+    const { ownerAddress }: typeof ENS.registry.owner.outputType = yield call(
+      makeEthCallAndDecode,
+      {
+        to: ropsten.registry,
+        decoder: ENS.registry.owner.decodeOutput,
+        data: ENS.registry.owner.encodeInput({
+          node: nameHash
+        })
+      }
+    );
+
+    if (ownerAddress !== '0x0000000000000000000000000000000000000000') {
+      ownerAddr = ownerAddress;
+      mode = NameState.Owned;
+
+      const { resolverAddress }: typeof ENS.registry.resolver.outputType = yield call(
+        makeEthCallAndDecode,
+        {
+          to: ropsten.registry,
+          decoder: ENS.registry.resolver.decodeOutput,
+          data: ENS.registry.resolver.encodeInput({
+            node: nameHash
+          })
+        }
+      );
+
+      if (resolverAddress !== '0x0000000000000000000000000000000000000000') {
+        const result: typeof ENS.resolver.addr.outputType = yield call(makeEthCallAndDecode, {
+          to: resolverAddress,
+          data: ENS.resolver.addr.encodeInput({ node: nameHash }),
+          decoder: ENS.resolver.addr.decodeOutput
+        });
+
+        resolvedAddress = result.ret;
+      }
+    }
+
+    const returnValue: IBaseSubdomainRequest = {
+      name,
+      mode: mode,
+      ownerAddress: ownerAddr,
+      resolvedAddress,
+      labelHash: ethUtil.addHexPrefix(hash.toString('hex')),
+      nameHash
+    };
+    return returnValue;
+  }
 }
 //#endregion Mode Map

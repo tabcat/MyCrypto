@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="160px" height="32px" viewBox="0 0 160 32" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<svg width="130px" height="32px" viewBox="0 0 130 32" enable-background="new 0.0 0.0 130.0 32.0" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <!-- Generator: Sketch 43.2 (39069) - http://www.bohemiancoding.com/sketch -->
     <title>ethsimple-banner-inverted</title>
     <desc>Created with Sketch.</desc>
     <defs></defs>
     <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
         <g id="ethsimple-banner-inverted">
-            <rect id="Rectangle-2" fill-opacity="0" fill="#17D50D" x="0" y="0" width="160" height="32" rx="16"></rect>
+            <rect id="Rectangle-2" fill-opacity="0" fill="#17D50D" x="0" y="0" width="130" height="32" rx="16"></rect>
             <text id="ETHSimple" font-family="Montserrat-SemiBold, Montserrat" font-size="20" font-weight="500" letter-spacing="1" fill="#6AF764">
-                <tspan x="40.8" y="26">ETH</tspan>
-                <tspan x="84.92" y="26" font-family="Montserrat-ExtraLight, Montserrat" font-weight="300">Simple</tspan>
+                <tspan x="10.8" y="26">ETH</tspan>
+                <tspan x="51.92" y="26" font-family="Montserrat-ExtraLight, Montserrat" font-weight="300">Simple</tspan>
             </text>
             <text id="Powered-By:" font-family="AvenirNext-UltraLightItalic, Avenir Next" font-size="8" font-style="italic" font-weight="200" letter-spacing="0.13333334" fill="#4FF748">
-                <tspan x="42" y="9">Powered By:</tspan>
+                <tspan x="11" y="9">Powered By:</tspan>
             </text>
         </g>
     </g>
