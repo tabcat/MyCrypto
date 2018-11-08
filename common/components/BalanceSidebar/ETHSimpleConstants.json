@@ -1,0 +1,157 @@
+{ 
+  "domain": "ethsimple.eth",
+  "subdomainPriceETH": "0.0079",
+  "subdomainPriceWei": "7900000000000000",
+  "gasPriceGwei": "2",
+  "gasPriceWei": "2000000000",
+  "gasLimit": "150000",
+  "publicResolverAddr": "0x5ffc014343cd971b7eb70732021e26c35b744cc4",
+  "emptyContentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "subdomainRegistrarAddr": {
+  	"mainnet": "0x0E194cb0C533d2C9978d3Bb43cf744FF334c5489",
+  	"testnet": "0x5E307a315186a92d281F62e7E2aFb6AA2292dD42"
+  },
+  "subdomainRegistrarABI": [
+    {
+      "constant": false,
+      "inputs": [
+        { "name": "_node",
+        	"type": "bytes32" },
+        { "name": "_label",
+        	"type": "bytes32" },
+        { "name": "_newNode",
+        	"type": "bytes32" },
+        { "name": "_resolver",
+        	"type": "address" },
+        { "name": "_owner",
+        	"type": "address" },
+        { "name": "_resolvedAddress",
+        	"type": "address" },
+        { "name": "_contentHash",
+        	"type": "bytes32" }
+      ],
+      "name": "purchaseSubdomain",
+      "outputs": [],
+      "payable": true,
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "returnDomainOwnership",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [{
+      	"name": "_price",
+      	"type": "uint256"
+      }],
+      "name": "setSubdomainPrice",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "withdraw",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+      	{
+	      	"name": "network_id",
+	      	"type": "uint256"
+      	},
+      	{
+      		"name": "_price",
+      		"type": "uint256"
+      	}
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "ensFactory",
+      "outputs": [{
+      	"name": "",
+      	"type": "address" 
+      }],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "registrar",
+      "outputs": [{
+      	"name": "",
+      	"type": "address" 
+      }],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "registrarOwner",
+      "outputs": [{
+      	"name": "",
+      	"type": "address"
+      }],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "registry",
+      "outputs": [{
+      	"name": "",
+      	"type": "address"
+      }],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "resolver",
+      "outputs": [{
+      	"name": "",
+      	"type": "address"
+      }],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "reverseRegistrar",
+      "outputs": [{
+      	"name": "",
+      	"type": "address"
+      }],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ]
+}
