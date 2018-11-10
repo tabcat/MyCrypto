@@ -10,7 +10,8 @@ import {
   NameState,
   getNameHash,
   IBaseDomainRequest,
-  IBaseSubdomainRequest
+  IBaseSubdomainRequest,
+  IBaseAddressRequest
 } from 'libs/ens';
 import * as configNodesSelectors from 'features/config/nodes/selectors';
 
@@ -95,16 +96,16 @@ const modeMap: IModeMap = {
   [NameState.NotYetAvailable]: (_: IDomainData<NameState.NotYetAvailable>) => ({})
 };
 
-export function* resolveDomainRequest(name: string): SagaIterator {
-  let subdomain = false;
-  if (name.split('.').length > 1) subdomain = true;
-
+export function* resolveDomainRequest(name: string, testnet?: boolean): SagaIterator {
   const hash = ethUtil.sha3(name);
+  const labelHash = hash.toString('hex');
   const nameHash = getNameHash(`${name}.eth`);
+  const ensContracts = testnet ? ropsten : main;
 
-  if (!subdomain) {
+  if (name.split('.').length < 2) {
+    // determine if subdomain
     const domainData: typeof ENS.auction.entries.outputType = yield call(makeEthCallAndDecode, {
-      to: main.public.ethAuction,
+      to: ensContracts.public.ethAuction,
       data: ENS.auction.entries.encodeInput({ _hash: hash }),
       decoder: ENS.auction.entries.decodeOutput
     });
@@ -115,19 +116,19 @@ export function* resolveDomainRequest(name: string): SagaIterator {
       name,
       ...domainData,
       ...result,
-      labelHash: ethUtil.addHexPrefix(hash.toString('hex')),
+      labelHash,
       nameHash
     };
     return returnValue;
   } else {
-    let ownerAddr = '0x0';
+    const emptyField = '0x0000000000000000000000000000000000000000';
     let resolvedAddress = '0x0';
     let mode = NameState.Open;
 
     const { ownerAddress }: typeof ENS.registry.owner.outputType = yield call(
       makeEthCallAndDecode,
       {
-        to: ropsten.registry,
+        to: ensContracts.registry,
         decoder: ENS.registry.owner.decodeOutput,
         data: ENS.registry.owner.encodeInput({
           node: nameHash
@@ -135,14 +136,13 @@ export function* resolveDomainRequest(name: string): SagaIterator {
       }
     );
 
-    if (ownerAddress !== '0x0000000000000000000000000000000000000000') {
-      ownerAddr = ownerAddress;
+    if (ownerAddress !== emptyField) {
       mode = NameState.Owned;
 
       const { resolverAddress }: typeof ENS.registry.resolver.outputType = yield call(
         makeEthCallAndDecode,
         {
-          to: ropsten.registry,
+          to: ensContracts.registry,
           decoder: ENS.registry.resolver.decodeOutput,
           data: ENS.registry.resolver.encodeInput({
             node: nameHash
@@ -150,7 +150,7 @@ export function* resolveDomainRequest(name: string): SagaIterator {
         }
       );
 
-      if (resolverAddress !== '0x0000000000000000000000000000000000000000') {
+      if (resolverAddress !== emptyField) {
         const result: typeof ENS.resolver.addr.outputType = yield call(makeEthCallAndDecode, {
           to: resolverAddress,
           data: ENS.resolver.addr.encodeInput({ node: nameHash }),
@@ -163,13 +163,52 @@ export function* resolveDomainRequest(name: string): SagaIterator {
 
     const returnValue: IBaseSubdomainRequest = {
       name,
-      mode: mode,
-      ownerAddress: ownerAddr,
+      mode,
+      ownerAddress,
       resolvedAddress,
-      labelHash: ethUtil.addHexPrefix(hash.toString('hex')),
+      labelHash,
       nameHash
     };
     return returnValue;
   }
+}
+
+export function* reverseResolveAddressRequest(address: string, testnet?: boolean): SagaIterator {
+  const nameHash = getNameHash(`${address.slice(2)}.addr.reverse`);
+  const emptyField = '0x0000000000000000000000000000000000000000';
+  const ensContracts = testnet ? ropsten : main;
+
+  const { resolverAddress }: typeof ENS.registry.resolver.outputType = yield call(
+    makeEthCallAndDecode,
+    {
+      to: ensContracts.registry,
+      decoder: ENS.registry.resolver.decodeOutput,
+      data: ENS.registry.resolver.encodeInput({
+        node: nameHash
+      })
+    }
+  );
+
+  let name = '';
+
+  if (resolverAddress !== emptyField) {
+    const result: typeof ENS.reverse.name.outputType = yield call(makeEthCallAndDecode, {
+      to: resolverAddress,
+      data: ENS.reverse.name.encodeInput({
+        '0': nameHash
+      }),
+      decoder: ENS.reverse.name.decodeOutput
+    });
+
+    if (!!result.name) {
+      name = result.name;
+    }
+  }
+
+  const returnValue: IBaseAddressRequest = {
+    address,
+    name
+  };
+  return returnValue;
 }
 //#endregion Mode Map

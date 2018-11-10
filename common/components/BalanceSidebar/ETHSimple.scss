@@ -30,6 +30,12 @@
   }
 
   &-description {
+    overflow-x: hidden;
+    text-overflow: ellipsis;
+    //flex: 1 2 auto;
+  }
+
+  &-description {
     font-weight: 300;
     font-size: 16px;
     padding: 2px 0 6px;

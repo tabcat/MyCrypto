@@ -24,6 +24,7 @@ interface DispatchProps {
 
 interface OwnProps {
   address: string;
+  purchasedSubdomainLabel: string | null;
 }
 
 type Props = StateProps & DispatchProps & OwnProps;
@@ -60,13 +61,13 @@ class AccountAddress extends React.Component<Props, State> {
   }
 
   public render() {
-    const { address, addressLabel } = this.props;
+    const { address, addressLabel, purchasedSubdomainLabel } = this.props;
     const { copied } = this.state;
     const labelContent = this.generateLabelContent();
     const labelButton = this.generateLabelButton();
     const reverseResolverButton = this.generateReverseResolverButton();
     const addressClassName = `AccountInfo-address-addr ${
-      addressLabel ? 'AccountInfo-address-addr--small' : ''
+      addressLabel || purchasedSubdomainLabel ? 'AccountInfo-address-addr--small' : ''
     }`;
 
     return (
@@ -93,7 +94,10 @@ class AccountAddress extends React.Component<Props, State> {
             <div className="AccountInfo-label" title={translateRaw('EDIT_LABEL_2')}>
               {labelButton}
             </div>
-            <div className="AccountInfo-label" title={translateRaw('SET_REVERSE_RESOLVER')}>
+            <div
+              className="AccountInfo-label help-block is-invalid"
+              title={translateRaw('SET_REVERSE_RESOLVER')}
+            >
               {reverseResolverButton}
             </div>
           </div>
@@ -118,7 +122,11 @@ class AccountAddress extends React.Component<Props, State> {
   private setLabelInputRef = (node: HTMLInputElement) => (this.labelInput = node);
 
   private generateLabelContent = () => {
-    const { addressLabel, entry: { temporaryLabel, labelError } } = this.props;
+    const {
+      addressLabel,
+      purchasedSubdomainLabel,
+      entry: { temporaryLabel, labelError }
+    } = this.props;
     const { editingLabel, labelInputTouched } = this.state;
     const newLabelSameAsPrevious = temporaryLabel === addressLabel;
     const labelInputTouchedWithError = labelInputTouched && !newLabelSameAsPrevious && labelError;
@@ -146,7 +154,25 @@ class AccountAddress extends React.Component<Props, State> {
         </React.Fragment>
       );
     } else {
-      labelContent = <label className="AccountInfo-address-label">{addressLabel}</label>;
+      labelContent = purchasedSubdomainLabel ? (
+        <React.Fragment>
+          <label className="AccountInfo-address-label">{purchasedSubdomainLabel}</label>
+          <div className="help-block is-invalid">
+            <i className="fa fa-remove is-invalid AccountInfo-set-reverse-resolver" />
+            <span
+              role="button"
+              title={
+                addressLabel ? translateRaw('EDIT_LABEL') : translateRaw('SET_REVERSE_RESOLVER')
+              }
+              onClick={this.startEditingLabel}
+            >
+              {addressLabel ? ' Not set to public' : translate('SET_REVERSE_RESOLVER')}
+            </span>
+          </div>
+        </React.Fragment>
+      ) : (
+        <label className="AccountInfo-address-label">{addressLabel}</label>
+      );
     }
 
     return labelContent;
@@ -190,13 +216,13 @@ class AccountAddress extends React.Component<Props, State> {
       </React.Fragment>
     ) : (
       <React.Fragment>
-        <i className="fa fa-user-circle-o AccountInfo-set-reverse-resolver" />
+        <i className="fa fa-remove AccountInfo-set-reverse-resolver" />
         <span
           role="button"
           title={addressLabel ? translateRaw('EDIT_LABEL') : translateRaw('SET_REVERSE_RESOLVER')}
           onClick={this.startEditingLabel}
         >
-          {addressLabel ? translate('EDIT_LABEL') : translate('SET_REVERSE_RESOLVER')}
+          {addressLabel ? 'Not set to public' : translate('SET_REVERSE_RESOLVER')}
         </span>
       </React.Fragment>
     );

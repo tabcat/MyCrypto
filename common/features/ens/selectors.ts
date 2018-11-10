@@ -1,8 +1,10 @@
 import { IOwnedDomainRequest, IBaseDomainRequest, IBaseSubdomainRequest } from 'libs/ens';
 import { isCreationAddress } from 'libs/validators';
 import { AppState } from 'features/reducers';
+import { ensAddressRequestsTypes, ensAddressRequestsSelectors } from './addressRequests';
 import { ensDomainRequestsTypes, ensDomainRequestsSelectors } from './domainRequests';
 import { ensDomainSelectorSelectors } from './domainSelector';
+import { ensAddressSelectorSelectors } from './addressSelector';
 
 const isOwned = (data: IBaseDomainRequest | IBaseSubdomainRequest): data is IOwnedDomainRequest => {
   return !!(data as IOwnedDomainRequest).ownerAddress;
@@ -48,4 +50,36 @@ export const getResolvingDomain = (state: AppState) => {
   }
 
   return domainRequests[currentDomain].state === ensDomainRequestsTypes.RequestStates.pending;
+};
+
+export const getCurrentAddressData = (state: AppState) => {
+  const currentAddress = ensAddressSelectorSelectors.getCurrentAddress(state);
+  const addressRequests = ensAddressRequestsSelectors.getAddressRequests(state);
+
+  if (
+    !currentAddress ||
+    !addressRequests[currentAddress] ||
+    addressRequests[currentAddress].error
+  ) {
+    return null;
+  }
+
+  const addressData = addressRequests[currentAddress].data || null;
+
+  return addressData;
+};
+
+export const getResolvingAddress = (state: AppState) => {
+  const currentAddress = ensAddressSelectorSelectors.getCurrentAddress(state);
+  const addressRequests = ensAddressRequestsSelectors.getAddressRequests(state);
+
+  if (
+    !currentAddress ||
+    !addressRequests[currentAddress] ||
+    addressRequests[currentAddress].error
+  ) {
+    return null;
+  }
+
+  return addressRequests[currentAddress].state === ensAddressRequestsTypes.RequestStates.pending;
 };

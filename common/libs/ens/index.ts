@@ -61,6 +61,13 @@ export type DomainRequest =
   | IBaseDomainRequest
   | IBaseSubdomainRequest;
 
+export interface IBaseAddressRequest {
+  address: string;
+  name: string;
+}
+
+export type AddressRequest = IBaseAddressRequest;
+
 export interface IDomainData<Mode> {
   mode: Mode;
   deedAddress: string;

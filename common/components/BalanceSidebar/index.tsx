@@ -15,13 +15,26 @@ interface Block {
   isFullWidth?: boolean;
 }
 
+interface State {
+  purchasedSubdomainLabel: string | null;
+}
+
 interface StateProps {
   wallet: AppState['wallet']['inst'];
 }
 
-export class BalanceSidebar extends React.Component<StateProps> {
+export class BalanceSidebar extends React.Component<StateProps, State> {
+  public state = {
+    purchasedSubdomainLabel: null
+  };
+
+  setPurchasedSubdomainLabel = (label: string) => {
+    this.setState({ purchasedSubdomainLabel: label });
+  };
+
   public render() {
     const { wallet } = this.props;
+    const { purchasedSubdomainLabel } = this.state;
 
     if (!wallet) {
       return null;
@@ -30,11 +43,11 @@ export class BalanceSidebar extends React.Component<StateProps> {
     const blocks: Block[] = [
       {
         name: 'Account Info',
-        content: <AccountInfo wallet={wallet} />
+        content: <AccountInfo wallet={wallet} purchasedSubdomainLabel={purchasedSubdomainLabel} />
       },
       {
         name: 'ETHSimple',
-        content: <ETHSimple />
+        content: <ETHSimple subdomainPurchased={this.setPurchasedSubdomainLabel} />
       },
       {
         name: 'Promos',

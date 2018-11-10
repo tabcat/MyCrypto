@@ -1,5 +1,7 @@
 { 
-  "domain": "ethsimple.eth",
+	"url": "https://ethsimple.com",
+  "domain": "ethsimple",
+  "tld": "eth",
   "subdomainPriceETH": "0.0079",
   "subdomainPriceWei": "7900000000000000",
   "gasPriceGwei": "2",
