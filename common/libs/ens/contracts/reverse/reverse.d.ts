@@ -2,7 +2,7 @@ import { ABIFunc, ABIFuncParamless } from '../AbiFunc';
 
 export interface IReverse {
   ens: ABIFuncParamless<{ ensAddress: address }>;
-  setName: ABIFuncParamless<{ node: bytes32; _name: string }>;
+  setName: ABIFunc<{ name: string }, { node: bytes32 }>;
   name: ABIFunc<{ '0': bytes32 }, { name: string }>;
 }
 

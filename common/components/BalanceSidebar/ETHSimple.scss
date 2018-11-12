@@ -2,37 +2,26 @@
 @import 'common/sass/mixins';
 
 .ETHSimple {
-  //padding: 0 20px 20px 20px;
-  //border: 1px solid color(control-border);
 
   &-title {
     margin-top: 0px;
-    //padding: 0 15px;
-    //display: block;
-    //width: 250px;
-    //background: color(pane-bg);
   }
 
   &-logo {
     float: right;
-    max-width: 115px;
+    max-width: 130px;
     width: 100%;
     height: 32px;
-    background-image: url('~assets/images/ethsimple-banner.svg');
+    background-image: url('~assets/images/ethsimple-banner.png');
     background-repeat: no-repeat;
     display: block;
     background-size: cover;
     margin-top: 3px;
-
-    @include theme('dark') {
-      background-image: url('~assets/images/ethsimple-banner-inverted.svg');
-    }
   }
 
   &-description {
     overflow-x: hidden;
     text-overflow: ellipsis;
-    //flex: 1 2 auto;
   }
 
   &-description {

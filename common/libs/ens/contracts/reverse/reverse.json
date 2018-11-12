@@ -24,14 +24,14 @@
 }, {
 	"constant": false,
 	"inputs": [{
-		"name": "node",
-		"type": "bytes32" 
-	}, {
-		"name": "_name",
+		"name": "name",
 		"type": "string"
 	}],
 	"name": "setName",
-	"outputs": [],
+	"outputs": [{
+		"name": "node",
+		"type": "bytes32"
+	}],
 	"payable": false,
 	"type": "function"
 }]

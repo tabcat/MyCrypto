@@ -2,6 +2,10 @@
 	"url": "https://ethsimple.com",
   "domain": "ethsimple",
   "tld": "eth",
+  "supportedNetworks":[
+  	"ETH",
+  	"Ropsten"
+  ],
   "subdomainPriceETH": "0.0079",
   "subdomainPriceWei": "7900000000000000",
   "gasPriceGwei": "2",
