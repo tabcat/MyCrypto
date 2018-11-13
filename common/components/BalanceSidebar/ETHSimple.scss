@@ -17,6 +17,10 @@
     display: block;
     background-size: cover;
     margin-top: 3px;
+
+    @include theme('dark') {
+      background-image: url('~assets/images/ethsimple-banner-inverted.png');
+    }
   }
 
   &-description {

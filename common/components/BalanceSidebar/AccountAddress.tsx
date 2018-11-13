@@ -11,6 +11,7 @@ import {
   addressBookActions,
   addressBookSelectors
 } from 'features/addressBook';
+import { configSelectors } from 'features/config';
 import {
   transactionFieldsActions,
   transactionNetworkActions,
@@ -32,6 +33,7 @@ interface StateProps {
   entry: ReturnType<typeof addressBookSelectors.getAccountAddressEntry>;
   currentTransaction: false | transactionBroadcastTypes.ITransactionStatus | null;
   addressRequests: AppState['ens']['addressRequests'];
+  networkConfig: ReturnType<typeof configSelectors.getNetworkConfig>;
   addressLabel: string;
   transaction: EthTx;
   isFullTransaction: boolean;
@@ -246,9 +248,8 @@ class AccountAddress extends React.Component<Props, State> {
   private setToPublicButton = () => {
     const { reverseResolvedName, labelMatchesReverseResolvedName, hover } = this.state;
     const { addressLabel } = this.props;
-    return addressLabel.length === 0 ? (
-      <React.Fragment />
-    ) : labelMatchesReverseResolvedName ? (
+    return addressLabel.length === 0 ||
+      this.props.networkConfig.isTestnet ? null : labelMatchesReverseResolvedName ? (
       <React.Fragment>
         <div
           className="help-block is-valid AccountInfo-address-addr--small"
@@ -286,11 +287,11 @@ class AccountAddress extends React.Component<Props, State> {
           <i className="fa fa-remove" />
           <span
             role="button"
-            title={`Public account name does not match ${addressLabel}`} // "ENS_REVERSE_RESOLVE_MISMATCH": " Public account name does not match $addressLabel",
+            title={`Public account name does not match '${addressLabel}'`} // "ENS_REVERSE_RESOLVE_MISMATCH": " Public account name does not match $addressLabel",
             onClick={this.setReverseResolveName}
             className="AccountInfo-address-addr--small"
           >
-            {` Public account name does not match ${addressLabel}`}
+            {` Public account name does not match '${addressLabel}'`}
           </span>
         </div>
       </React.Fragment>
@@ -462,6 +463,7 @@ const mapStateToProps: MapStateToProps<StateProps, {}, AppState> = (
   const labelEntry = addressBookSelectors.getAddressLabelEntryFromAddress(state, ownProps.address);
   return {
     addressRequests: state.ens.addressRequests,
+    networkConfig: configSelectors.getNetworkConfig(state),
     entry: addressBookSelectors.getAccountAddressEntry(state),
     addressLabel: labelEntry ? labelEntry.label : '',
     ...derivedSelectors.getTransaction(state),

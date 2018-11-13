@@ -112,7 +112,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
       ? ownedByAddress
       : !!subdomain && isValidDomain && isAvailableDomain;
     const purchaseDisabled =
-      isResolving || !isAvailableDomain || purchaseClicked || subdomain.length === 0; // || this.props.isOffline
+      isResolving || !isAvailableDomain || purchaseClicked || subdomain.length === 0;
     const description = this.makeDescription(subdomain);
     const statusLabel = this.makeStatusLabel();
     const esDomain = '.' + constants.domain + '.' + constants.tld;
