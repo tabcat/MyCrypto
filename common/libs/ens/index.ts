@@ -64,6 +64,7 @@ export type DomainRequest =
 export interface IBaseAddressRequest {
   address: string;
   name: string;
+  claimed: boolean;
 }
 
 export type AddressRequest = IBaseAddressRequest;

@@ -95,7 +95,7 @@ function* reverseResolveAddress(): SagaIterator {
   while (true) {
     const { payload }: types.ReverseResolveAddressRequested = yield take(requestChan);
 
-    const { address, testnet, refresh } = payload;
+    const { address, refresh } = payload;
 
     try {
       if (!refresh) {
@@ -113,7 +113,7 @@ function* reverseResolveAddress(): SagaIterator {
         addressData: IBaseAddressRequest;
         error: any;
       } = yield race({
-        addressData: call(helpers.reverseResolveAddressRequest, address, testnet, node),
+        addressData: call(helpers.reverseResolveAddressRequest, address, node),
         err: call(delay, 10000)
       });
 

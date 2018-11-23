@@ -102,8 +102,8 @@ export function* resolveDomainRequest(name: string, testnet?: boolean): SagaIter
   const nameHash = getNameHash(`${name}.eth`);
   const ensContracts = testnet ? ropsten : main;
 
+  // determine if subdomain
   if (name.split('.').length < 2) {
-    // determine if subdomain
     const domainData: typeof ENS.auction.entries.outputType = yield call(makeEthCallAndDecode, {
       to: ensContracts.public.ethAuction,
       data: ENS.auction.entries.encodeInput({ _hash: hash }),
@@ -172,16 +172,16 @@ export function* resolveDomainRequest(name: string, testnet?: boolean): SagaIter
     return returnValue;
   }
 }
+//#endregion Mode Map
 
-export function* reverseResolveAddressRequest(address: string, testnet?: boolean): SagaIterator {
+export function* reverseResolveAddressRequest(address: string): SagaIterator {
   const nameHash = getNameHash(`${address.slice(2)}.addr.reverse`);
   const emptyField = '0x0000000000000000000000000000000000000000';
-  const ensContracts = testnet ? ropsten : main;
 
   const { resolverAddress }: typeof ENS.registry.resolver.outputType = yield call(
     makeEthCallAndDecode,
     {
-      to: ensContracts.registry,
+      to: main.registry,
       decoder: ENS.registry.resolver.decodeOutput,
       data: ENS.registry.resolver.encodeInput({
         node: nameHash
@@ -190,6 +190,7 @@ export function* reverseResolveAddressRequest(address: string, testnet?: boolean
   );
 
   let name = '';
+  let claimed = false;
 
   if (resolverAddress !== emptyField) {
     const result: typeof ENS.reverse.name.outputType = yield call(makeEthCallAndDecode, {
@@ -200,6 +201,8 @@ export function* reverseResolveAddressRequest(address: string, testnet?: boolean
       decoder: ENS.reverse.name.decodeOutput
     });
 
+    claimed = true;
+
     if (!!result.name) {
       name = result.name;
     }
@@ -207,8 +210,8 @@ export function* reverseResolveAddressRequest(address: string, testnet?: boolean
 
   const returnValue: IBaseAddressRequest = {
     address,
-    name
+    name,
+    claimed
   };
   return returnValue;
 }
-//#endregion Mode Map

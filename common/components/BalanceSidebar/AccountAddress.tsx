@@ -1,10 +1,8 @@
 import React from 'react';
 import { connect, MapStateToProps } from 'react-redux';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
-import EthTx from 'ethereumjs-tx';
 
 import translate, { translateRaw } from 'translations';
-import * as derivedSelectors from 'features/selectors';
 import { AppState } from 'features/reducers';
 import {
   addressBookConstants,
@@ -12,34 +10,16 @@ import {
   addressBookSelectors
 } from 'features/addressBook';
 import { configSelectors } from 'features/config';
-import {
-  transactionFieldsActions,
-  transactionNetworkActions,
-  transactionSignActions,
-  transactionSelectors,
-  transactionBroadcastTypes,
-  transactionSignSelectors
-} from 'features/transaction';
 import { ensActions } from 'features/ens';
-import Contract from 'libs/contracts';
-import ENS from 'libs/ens/contracts';
 import { IBaseAddressRequest } from 'libs/ens';
 import { Address, Identicon, Input } from 'components/ui';
-import { Address as AddressTx, Wei } from 'libs/units';
-import { notificationsActions } from 'features/notifications';
-import { ConfirmationModal } from 'components/ConfirmationModal';
+import AccountNameStatus from './AccountNameStatus';
 
 interface StateProps {
   entry: ReturnType<typeof addressBookSelectors.getAccountAddressEntry>;
-  currentTransaction: false | transactionBroadcastTypes.ITransactionStatus | null;
   addressRequests: AppState['ens']['addressRequests'];
   networkConfig: ReturnType<typeof configSelectors.getNetworkConfig>;
   addressLabel: string;
-  transaction: EthTx;
-  isFullTransaction: boolean;
-  transactionBroadcasted: boolean | null;
-  signaturePending: boolean;
-  signedTx: boolean;
 }
 
 interface DispatchProps {
@@ -47,16 +27,6 @@ interface DispatchProps {
   changeAddressLabelEntry: addressBookActions.TChangeAddressLabelEntry;
   saveAddressLabelEntry: addressBookActions.TSaveAddressLabelEntry;
   removeAddressLabelEntry: addressBookActions.TRemoveAddressLabelEntry;
-  resetTransactionRequested: transactionFieldsActions.TResetTransactionRequested;
-  inputData: transactionFieldsActions.TInputData;
-  setToField: transactionFieldsActions.TSetToField;
-  setValueField: transactionFieldsActions.TSetValueField;
-  inputGasLimit: transactionFieldsActions.TInputGasLimit;
-  inputGasPrice: transactionFieldsActions.TInputGasPrice;
-  getFromRequested: transactionNetworkActions.TGetFromRequested;
-  getNonceRequested: transactionNetworkActions.TGetNonceRequested;
-  signTransactionRequested: transactionSignActions.TSignTransactionRequested;
-  showNotification: notificationsActions.TShowNotification;
 }
 
 interface OwnProps {
@@ -70,11 +40,8 @@ interface State {
   copied: boolean;
   editingLabel: boolean;
   labelInputTouched: boolean;
-  reverseRegistrarInstance: Contract;
-  showModal: boolean;
-  hover: boolean;
-  reverseResolvedName: string;
-  labelMatchesReverseResolvedName: boolean;
+  addressLabel: string;
+  addressRequest: IBaseAddressRequest | null;
 }
 
 class AccountAddress extends React.Component<Props, State> {
@@ -82,11 +49,8 @@ class AccountAddress extends React.Component<Props, State> {
     copied: false,
     editingLabel: false,
     labelInputTouched: false,
-    reverseRegistrarInstance: ENS.reverse,
-    showModal: false,
-    hover: false,
-    reverseResolvedName: '',
-    labelMatchesReverseResolvedName: true
+    addressLabel: '',
+    addressRequest: null
   };
 
   private goingToClearCopied: number | null = null;
@@ -108,37 +72,24 @@ class AccountAddress extends React.Component<Props, State> {
   }
 
   public componentDidUpdate(prevProps: Props) {
-    const { address, addressRequests, purchasedSubdomainLabel, addressLabel } = this.props;
-    if (address !== prevProps.address) {
-      this.props.reverseResolveAddressRequested(address);
+    const { address, addressLabel, addressRequests } = this.props;
+    if (address !== prevProps.address && !this.props.networkConfig.isTestnet) {
+      this.props.reverseResolveAddressRequested(address, false);
     }
     if (addressRequests !== prevProps.addressRequests) {
       const req = addressRequests[address];
-      if (!!req && !req.error && req.data && (req.data as IBaseAddressRequest).name) {
-        const reverseResolvedName = (req.data as IBaseAddressRequest).name;
-        const labelMatchesReverseResolvedName = reverseResolvedName === addressLabel;
-        if (reverseResolvedName.length > 0) {
-          this.setState({
-            reverseResolvedName,
-            labelMatchesReverseResolvedName
-          });
-        }
-      }
-    }
-    if (purchasedSubdomainLabel !== prevProps.purchasedSubdomainLabel) {
-      if (!!purchasedSubdomainLabel) {
-        this.setState({ labelMatchesReverseResolvedName: false });
+      if (!!req.data) {
+        this.setState({ addressRequest: req.data });
       }
     }
     if (addressLabel !== prevProps.addressLabel) {
-      const labelMatchesReverseResolvedName = addressLabel == this.state.reverseResolvedName;
-      this.setState({ labelMatchesReverseResolvedName });
+      this.setState({ addressLabel: addressLabel });
     }
   }
 
   public render() {
-    const { address, addressLabel, signaturePending, signedTx } = this.props;
-    const { copied, showModal } = this.state;
+    const { address, addressLabel } = this.props;
+    const { copied } = this.state;
     const labelContent = this.generateLabelContent();
     const labelButton = this.generateLabelButton();
     const addressClassName = `AccountInfo-address-addr ${
@@ -169,12 +120,6 @@ class AccountAddress extends React.Component<Props, State> {
             <div className="AccountInfo-label" title={translateRaw('EDIT_LABEL_2')}>
               {labelButton}
             </div>
-            <React.Fragment>
-              <ConfirmationModal
-                isOpen={!signaturePending && signedTx && showModal}
-                onClose={this.closeModal}
-              />
-            </React.Fragment>
           </div>
         </div>
       </div>
@@ -197,10 +142,11 @@ class AccountAddress extends React.Component<Props, State> {
   private setLabelInputRef = (node: HTMLInputElement) => (this.labelInput = node);
 
   private generateLabelContent = () => {
-    const { addressLabel, entry: { temporaryLabel, labelError } } = this.props;
+    const { addressLabel, entry: { temporaryLabel, labelError }, networkConfig } = this.props;
     const { editingLabel, labelInputTouched } = this.state;
     const newLabelSameAsPrevious = temporaryLabel === addressLabel;
     const labelInputTouchedWithError = labelInputTouched && !newLabelSameAsPrevious && labelError;
+    const accountNameStatus = networkConfig.isTestnet ? null : this.generateAccountNameStatus();
 
     let labelContent = null;
 
@@ -227,14 +173,7 @@ class AccountAddress extends React.Component<Props, State> {
     } else {
       labelContent = (
         <React.Fragment>
-          <div
-            className="help-block"
-            onMouseEnter={this.handleHover}
-            onMouseLeave={this.handleNoHover}
-            style={{ marginBottom: 2 }}
-          >
-            {this.setToPublicButton()}
-          </div>
+          {accountNameStatus}
           {addressLabel.length > 0 && (
             <label className="AccountInfo-address-label">{addressLabel}</label>
           )}
@@ -245,67 +184,19 @@ class AccountAddress extends React.Component<Props, State> {
     return labelContent;
   };
 
-  private setToPublicButton = () => {
-    const { reverseResolvedName, labelMatchesReverseResolvedName, hover } = this.state;
-    const { addressLabel } = this.props;
-    return addressLabel.length === 0 ||
-      this.props.networkConfig.isTestnet ? null : labelMatchesReverseResolvedName ? (
+  private generateAccountNameStatus = () => {
+    const { address, purchasedSubdomainLabel } = this.props;
+    const { addressLabel, addressRequest } = this.state;
+    return (
       <React.Fragment>
-        <div
-          className="help-block is-valid AccountInfo-address-addr--small"
-          style={{ marginBottom: 0 }}
-        >
-          <i className="fa fa-check" />
-          <span
-            role=""
-            title={` Account name '${reverseResolvedName}' is public`} // "ENS_REVERSE_RESOLVE_ACCOUNT_PUBLIC": "Account name '$accountName' is public",
-            onClick={this.setReverseResolveName}
-          >
-            {` Account name is public`}
-          </span>
-        </div>
-      </React.Fragment>
-    ) : hover ? ( // // "ENS_REVERSE_RESOLVE_ACCOUNT_PUBLIC_SHORT": " Account name is public",
-      <React.Fragment>
-        <div
-          className="help-block is-valid AccountInfo-address-addr--small"
-          style={{ marginBottom: 0 }}
-        >
-          <i className="fa fa-check" />
-          <span
-            role="button"
-            title={`Update public account name to '${addressLabel}'`} // "ENS_REVERSE_RESOLVE_UPDATE_ACCOUNT": " Update public account name to '$addressLabel",
-            onClick={this.setReverseResolveName}
-          >
-            {` Update public account name to '${addressLabel}'`}
-          </span>
-        </div>
-      </React.Fragment>
-    ) : (
-      <React.Fragment>
-        <div className="help-block is-invalid" style={{ marginBottom: 0 }}>
-          <i className="fa fa-remove" />
-          <span
-            role="button"
-            title={`Public account name does not match '${addressLabel}'`} // "ENS_REVERSE_RESOLVE_MISMATCH": " Public account name does not match $addressLabel",
-            onClick={this.setReverseResolveName}
-            className="AccountInfo-address-addr--small"
-          >
-            {` Public account name does not match '${addressLabel}'`}
-          </span>
-        </div>
+        <AccountNameStatus
+          address={address}
+          addressLabel={addressLabel}
+          purchasedSubdomainLabel={purchasedSubdomainLabel}
+          addressRequest={addressRequest}
+        />
       </React.Fragment>
     );
-  };
-
-  private handleHover = () => {
-    if (!this.state.labelMatchesReverseResolvedName) {
-      this.setState({ hover: true });
-    }
-  };
-
-  private handleNoHover = () => {
-    this.setState({ hover: false });
   };
 
   private generateLabelButton = () => {
@@ -332,37 +223,6 @@ class AccountAddress extends React.Component<Props, State> {
     );
 
     return labelButton;
-  };
-
-  private setReverseResolveName = (ev: React.FormEvent<HTMLElement>) => {
-    ev.preventDefault();
-    this.props.getFromRequested();
-    this.props.getNonceRequested();
-    const nameToSet = this.props.addressLabel;
-    const inputs = {
-      name: nameToSet
-    } as any;
-    const encodedInputData = this.state.reverseRegistrarInstance.setName.encodeInput(Object.keys(
-      inputs
-    ).reduce((accu, key) => ({ ...accu, [key]: inputs[key] }), {}) as ReturnType<typeof inputs>);
-    this.props.inputData(encodedInputData);
-    this.props.setToField({
-      raw: '0x9062c0a6dbd6108336bcbe4593a3d1ce05512069',
-      value: AddressTx('0x9062c0a6dbd6108336bcbe4593a3d1ce05512069')
-    });
-    this.props.setValueField({
-      raw: '0',
-      value: Wei('0')
-    });
-    this.props.inputGasPrice('5');
-    this.props.inputGasLimit('50000');
-    setTimeout(this.reverseResolveTx, 3000);
-  };
-
-  private reverseResolveTx = () => {
-    console.log('reverseResolveTx');
-    this.props.signTransactionRequested(this.props.transaction);
-    this.openModal();
   };
 
   private handleBlur = () => {
@@ -431,29 +291,6 @@ class AccountAddress extends React.Component<Props, State> {
   };
 
   private clearTemporaryLabelTouched = () => this.setState({ labelInputTouched: false });
-
-  public UNSAFE_componentWillReceiveProps(nextProps: Props) {
-    if (nextProps.transactionBroadcasted && this.state.showModal) {
-      this.closeModal();
-    }
-  }
-
-  private openModal = () => {
-    const { currentTransaction } = this.props;
-
-    if (
-      currentTransaction &&
-      (currentTransaction.broadcastSuccessful || currentTransaction.isBroadcasting)
-    ) {
-      return this.props.showNotification(
-        'warning',
-        'The current transaction is already broadcasting or has been successfully broadcasted'
-      );
-    }
-    this.setState({ showModal: true });
-  };
-
-  private closeModal = () => this.setState({ showModal: false });
 }
 
 const mapStateToProps: MapStateToProps<StateProps, {}, AppState> = (
@@ -465,13 +302,7 @@ const mapStateToProps: MapStateToProps<StateProps, {}, AppState> = (
     addressRequests: state.ens.addressRequests,
     networkConfig: configSelectors.getNetworkConfig(state),
     entry: addressBookSelectors.getAccountAddressEntry(state),
-    addressLabel: labelEntry ? labelEntry.label : '',
-    ...derivedSelectors.getTransaction(state),
-    currentTransaction: transactionSelectors.getCurrentTransactionStatus(state),
-    transactionBroadcasted: transactionSelectors.currentTransactionBroadcasted(state),
-    signaturePending: derivedSelectors.signaturePending(state).isSignaturePending,
-    signedTx:
-      !!transactionSignSelectors.getSignedTx(state) || !!transactionSignSelectors.getWeb3Tx(state)
+    addressLabel: labelEntry ? labelEntry.label : ''
   };
 };
 
@@ -479,17 +310,7 @@ const mapDispatchToProps: DispatchProps = {
   reverseResolveAddressRequested: ensActions.reverseResolveAddressRequested,
   changeAddressLabelEntry: addressBookActions.changeAddressLabelEntry,
   saveAddressLabelEntry: addressBookActions.saveAddressLabelEntry,
-  removeAddressLabelEntry: addressBookActions.removeAddressLabelEntry,
-  resetTransactionRequested: transactionFieldsActions.resetTransactionRequested,
-  inputData: transactionFieldsActions.inputData,
-  setValueField: transactionFieldsActions.setValueField,
-  setToField: transactionFieldsActions.setToField,
-  inputGasPrice: transactionFieldsActions.inputGasPrice,
-  inputGasLimit: transactionFieldsActions.inputGasLimit,
-  getFromRequested: transactionNetworkActions.getFromRequested,
-  getNonceRequested: transactionNetworkActions.getNonceRequested,
-  signTransactionRequested: transactionSignActions.signTransactionRequested,
-  showNotification: notificationsActions.showNotification
+  removeAddressLabelEntry: addressBookActions.removeAddressLabelEntry
 };
 
 export default connect<StateProps, DispatchProps, OwnProps, AppState>(

@@ -28,13 +28,8 @@ export class BalanceSidebar extends React.Component<StateProps, State> {
     purchasedSubdomainLabel: null
   };
 
-  setPurchasedSubdomainLabel = (label: string) => {
-    this.setState({ purchasedSubdomainLabel: label });
-  };
-
   public render() {
     const { wallet } = this.props;
-    const { purchasedSubdomainLabel } = this.state;
 
     if (!wallet) {
       return null;
@@ -43,11 +38,16 @@ export class BalanceSidebar extends React.Component<StateProps, State> {
     const blocks: Block[] = [
       {
         name: 'Account Info',
-        content: <AccountInfo wallet={wallet} purchasedSubdomainLabel={purchasedSubdomainLabel} />
+        content: (
+          <AccountInfo
+            wallet={wallet}
+            purchasedSubdomainLabel={this.state.purchasedSubdomainLabel}
+          />
+        )
       },
       {
         name: 'ETHSimple',
-        content: <ETHSimple subdomainPurchased={this.setPurchasedSubdomainLabel} />
+        content: <ETHSimple wallet={wallet} subdomainPurchased={this.setPurchasedSubdomainLabel} />
       },
       {
         name: 'Promos',
@@ -74,6 +74,10 @@ export class BalanceSidebar extends React.Component<StateProps, State> {
       </aside>
     );
   }
+
+  private setPurchasedSubdomainLabel = (label: string) => {
+    this.setState({ purchasedSubdomainLabel: label });
+  };
 }
 
 const mapStateToProps = (state: AppState): StateProps => ({

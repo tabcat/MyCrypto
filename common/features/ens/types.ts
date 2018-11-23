@@ -44,7 +44,7 @@ export interface ResolveDomainFailed {
 
 export interface ReverseResolveAddressRequested {
   type: ENSActions.REVERSE_RESOLVE_ADDRESS_REQUESTED;
-  payload: { address: string; testnet?: boolean; refresh?: boolean };
+  payload: { address: string; refresh?: boolean };
 }
 
 export interface ReverseResolveAddressSucceeded {
