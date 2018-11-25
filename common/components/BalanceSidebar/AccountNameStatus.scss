@@ -1,0 +1,58 @@
+@import 'common/sass/variables';
+@import 'common/sass/mixins';
+
+.AccountNameStatus {
+  &-name {
+    @include clearfix;
+
+    &-section {
+      display: flex;
+      max-width: 100%;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: center;
+    }
+
+    &-wrapper {
+      max-width: 100%;
+
+      &-error {
+        color: color(brand-danger);
+        margin-bottom: $space-md;
+      }
+    }
+
+    &-addr {
+      margin-top: -$space-xs;
+      word-wrap: break-word;
+      @include mono;
+
+      &--small {
+        font-size: 0.8rem;
+      }
+    }
+
+    &-label {
+      font-weight: bolder;
+      font-size: 1.3rem;
+      text-overflow: ellipsis;
+      word-wrap: break-word;
+    }
+  }
+
+  .status {
+
+  	&-icon {
+	  	font-size: 0.7rem;
+	  	vertical-align: top;
+		  margin-top: 0.0rem;
+	  }
+
+	  &-label {
+	  	font-weight: bolder;
+	  	font-size: 0.6rem;
+	  	vertical-align: top;
+		  margin-top: 0.0rem;
+	  }
+  }
+}

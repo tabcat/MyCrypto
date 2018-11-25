@@ -6,6 +6,7 @@
   "supportedNetworks": ["ETH", "Ropsten"],
   "subdomainPriceETH": "0.0079",
   "subdomainPriceWei": "7900000000000000",
+  "purchaseSubdomainGasLimit": "130835",
   "publicResolverAddr": "0x5ffc014343cd971b7eb70732021e26c35b744cc4",
   "esFullDomainNamehash":"0xff60be0907d071946e59cea1ebac55c2e39e886f0101b78c305f67bdc2c4bd73",
   "emptyContentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",

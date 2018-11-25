@@ -26,6 +26,7 @@ import { getNameHash, NameState, IBaseSubdomainRequest } from 'libs/ens';
 import Contract from 'libs/contracts';
 import { Address, Wei } from 'libs/units';
 import { Web3Wallet } from 'libs/wallet/non-deterministic';
+import { getTransactionFields } from 'libs/transaction/utils/ether';
 import { Input, Spinner } from 'components/ui';
 import { ConfirmationModal } from 'components/ConfirmationModal';
 import './ETHSimple.scss';
@@ -33,10 +34,8 @@ const constants = require('./ETHSimpleConstants.json');
 
 interface StateProps {
   domainRequests: AppState['ens']['domainRequests'];
-  broadcast: AppState['transaction']['broadcast'];
   txNetworkFields: AppState['transaction']['network'];
   notifications: AppState['notifications'];
-  indexingHash: AppState['transaction']['sign']['indexingHash'];
   serializedTransaction: AppState['transaction']['sign']['web3']['transaction'];
   isResolving: boolean | null;
   networkConfig: ReturnType<typeof configSelectors.getNetworkConfig>;
@@ -46,7 +45,6 @@ interface StateProps {
   signaturePending: boolean;
   signedTx: boolean;
   isFullTransaction: boolean;
-  validGasPrice: boolean;
   validGasLimit: boolean;
   networkRequestPending: boolean;
   currentTransaction: false | transactionBroadcastTypes.ITransactionStatus | null;
@@ -60,7 +58,7 @@ interface DispatchProps {
   setToField: transactionFieldsActions.TSetToField;
   setValueField: transactionFieldsActions.TSetValueField;
   inputData: transactionFieldsActions.TInputData;
-  getFromRequested: transactionNetworkActions.TGetFromRequested;
+  inputGasLimit: transactionFieldsActions.TInputGasLimit;
   getNonceRequested: transactionNetworkActions.TGetNonceRequested;
   resetTransactionRequested: transactionFieldsActions.TResetTransactionRequested;
   signTransactionRequested: transactionSignActions.TSignTransactionRequested;
@@ -82,17 +80,15 @@ interface State {
   address: string;
   network: string;
   isValidDomain: boolean;
-  isAvailableDomain: boolean;
   isFocused: boolean;
   isLoading: boolean;
   purchaseClicked: boolean;
   initialPollRequested: boolean;
   pollTimeout: boolean;
-  ownedByAddress: boolean;
   supportedNetwork: boolean;
   showModal: boolean;
-  pollingMode: boolean;
   txRepairMode: boolean;
+  domainRequest: IBaseSubdomainRequest | null;
 }
 
 class ETHSimpleClass extends React.Component<Props, State> {
@@ -105,28 +101,25 @@ class ETHSimpleClass extends React.Component<Props, State> {
     network: '',
     isFocused: false,
     isValidDomain: false,
-    isAvailableDomain: false,
     isLoading: false,
     purchaseClicked: false,
     initialPollRequested: false,
     pollTimeout: false,
-    ownedByAddress: false,
     supportedNetwork: false,
     showModal: false,
-    pollingMode: false,
-    txRepairMode: false
+    txRepairMode: false,
+    domainRequest: null
   };
 
   public render() {
     const {
       isLoading,
       isValidDomain,
-      isAvailableDomain,
       purchaseClicked,
       subdomain,
-      ownedByAddress,
       supportedNetwork,
-      showModal
+      showModal,
+      domainToCheck
     } = this.state;
     const {
       isResolving,
@@ -134,22 +127,30 @@ class ETHSimpleClass extends React.Component<Props, State> {
       signedTx,
       isFullTransaction,
       networkRequestPending,
-      validGasPrice,
-      validGasLimit
+      validGasLimit,
+      domainRequests,
+      wallet
     } = this.props;
-    const validSubdomain = ownedByAddress
-      ? ownedByAddress
-      : !!subdomain && isValidDomain && isAvailableDomain;
+    const validSubdomain = !!subdomain && isValidDomain;
+    const req = domainRequests[domainToCheck];
+    const isAvailableDomain =
+      !!req && !!req.data ? (req.data as IBaseSubdomainRequest).mode === NameState.Open : false;
+    const ownedByThisAddress =
+      !!req && !!req.data
+        ? (req.data as IBaseSubdomainRequest).ownerAddress ===
+          this.props.toChecksumAddress(wallet.getAddressString())
+        : false;
     const purchaseDisabled =
+      !validSubdomain ||
       isResolving ||
       purchaseClicked ||
-      subdomain.length === 0 ||
+      subdomain.length < 1 ||
       !isFullTransaction ||
       networkRequestPending ||
-      !validGasPrice ||
       !validGasLimit ||
-      ownedByAddress; // || !isAvailableDomain
-    const description = this.generateDescription(subdomain);
+      !isAvailableDomain ||
+      ownedByThisAddress;
+    const description = this.generateDescription();
     const statusLabel = this.generateStatusLabel();
     const esLogoButton = (
       <div className="row">
@@ -182,8 +183,11 @@ class ETHSimpleClass extends React.Component<Props, State> {
                 onFocus={this.onFocus}
                 onBlur={this.onBlur}
                 disabled={isLoading}
+                style={{ marginBottom: '0.4rem' }}
               />
-              <span className="input-group-addon">{constants.esFullDomain}</span>
+              <span className="input-group-addon" style={{ marginBottom: '0.4rem' }}>
+                {constants.esFullDomain}
+              </span>
             </label>
           </div>
           <button
@@ -220,142 +224,150 @@ class ETHSimpleClass extends React.Component<Props, State> {
       supportedNetwork,
       address
     });
-    this.setAddressAndNetworkFromWallet(supportedNetwork);
+    this.setAddressAndNetwork(supportedNetwork);
   }
 
   public componentDidUpdate(prevProps: Props) {
     const {
       domainRequests,
       isResolving,
-      broadcast,
       txState,
-      indexingHash,
       txNetworkFields,
       networkRequestPending,
       isFullTransaction,
-      validGasPrice,
-      validGasLimit
+      validGasLimit,
+      currentTransaction
     } = this.props;
     const {
       purchaseClicked,
       initialPollRequested,
-      subdomain,
       domainToCheck,
       pollTimeout,
       isValidDomain,
-      isFocused,
       txRepairMode
     } = this.state;
     if (domainRequests !== prevProps.domainRequests) {
       const req = domainRequests[domainToCheck];
       const resolveCompleteAndValid =
         !isResolving &&
-        !!req &&
-        !!(req.data as IBaseSubdomainRequest) &&
-        !req.error &&
         isValidDomain &&
+        !!req &&
+        !req.error &&
+        !!(req.data as IBaseSubdomainRequest) &&
         (req.data as IBaseSubdomainRequest).name === domainToCheck;
-      const isAvailableDomain =
-        resolveCompleteAndValid && (req.data as IBaseSubdomainRequest).mode === NameState.Open;
-      const ownedByAddress =
-        resolveCompleteAndValid &&
-        (req.data as IBaseSubdomainRequest).ownerAddress === this.state.address;
-      const subdomainToDisplay = resolveCompleteAndValid
-        ? subdomain.length > 0 ? domainToCheck + constants.tld : ''
-        : this.state.subdomainToDisplay;
-      this.setState(
-        {
-          isAvailableDomain,
-          ownedByAddress,
-          subdomainToDisplay
-        },
-        () => {
-          if (resolveCompleteAndValid && isAvailableDomain && isFocused) {
-            this.buildTxData();
+      if (resolveCompleteAndValid && !!req.data) {
+        const domainRequest = req.data as IBaseSubdomainRequest;
+        this.setState({ domainRequest }, () => {
+          if (domainRequest.mode === NameState.Open) {
             this.updateTxFields();
           }
-        }
-      );
+        });
+      }
     }
     if (
       txNetworkFields !== prevProps.txNetworkFields &&
       txRepairMode &&
       !networkRequestPending &&
       isFullTransaction &&
-      validGasPrice &&
       validGasLimit &&
-      this.checkNetworkFields()
+      this.checkNetworkFields() &&
+      this.checkTxFields()
     ) {
       this.verifyTx();
     }
-    if (broadcast !== prevProps.broadcast) {
+    if (currentTransaction !== prevProps.currentTransaction) {
       if (
         purchaseClicked &&
         !initialPollRequested &&
-        !!(broadcast as any)[indexingHash as string] &&
-        (broadcast as any)[indexingHash as string].broadcastSuccessful
+        !!currentTransaction &&
+        currentTransaction.broadcastSuccessful
       ) {
         this.setState({ initialPollRequested: true });
         this.pollForHash();
+      } else if (
+        purchaseClicked &&
+        !!currentTransaction &&
+        !!prevProps.currentTransaction &&
+        !prevProps.currentTransaction.broadcastSuccessful &&
+        prevProps.currentTransaction.isBroadcasting &&
+        !currentTransaction.broadcastSuccessful &&
+        !currentTransaction.isBroadcasting
+      ) {
+        this.setState({
+          purchaseClicked: false
+        });
       }
     }
     if (txState !== prevProps.txState) {
       if (
         purchaseClicked &&
         initialPollRequested &&
-        !!txState &&
-        !!txState[(broadcast as any)[indexingHash as string].broadcastedHash as string].receipt &&
-        !!(txState[(broadcast as any)[indexingHash as string].broadcastedHash as string]
-          .receipt as TransactionReceipt).status &&
-        !!(txState[(broadcast as any)[indexingHash as string].broadcastedHash as string]
-          .receipt as TransactionReceipt).status === true
+        !!currentTransaction &&
+        !!currentTransaction.broadcastedHash &&
+        !!txState[currentTransaction.broadcastedHash].receipt &&
+        !!(txState[currentTransaction.broadcastedHash].receipt as TransactionReceipt).status &&
+        (txState[currentTransaction.broadcastedHash].receipt as TransactionReceipt).status === 1
       ) {
         this.purchaseComplete();
       } else if (!pollTimeout) {
-        this.setState({ pollTimeout: true });
-        this.pollForHash();
+        this.setState({ pollTimeout: true }, () => {
+          this.pollForHash();
+        });
       }
     }
   }
 
   private onChange = (event: React.FormEvent<HTMLInputElement>) => {
     const subdomain = event.currentTarget.value.toLowerCase().trim();
-    const domainToCheck = subdomain + (subdomain.length > 0 ? constants.esDomain : '');
-    const isValidDomain = isValidENSAddress(domainToCheck + constants.tld);
     const purchaseClicked = false;
-    const ownedByAddress = false;
-    if (isValidDomain) {
-      this.props.resolveDomainRequested(domainToCheck, this.props.networkConfig.isTestnet);
-    }
-    this.setState({
-      subdomain,
-      domainToCheck,
-      isValidDomain,
-      purchaseClicked,
-      ownedByAddress
-    });
+    const subdomainEntered = subdomain.length > 0;
+    const isValidDomain = subdomainEntered
+      ? isValidENSAddress(subdomain + constants.esDomain + constants.tld)
+      : false;
+    const domainToCheck = isValidDomain ? subdomain + constants.esDomain : this.state.domainToCheck;
+    const subdomainToDisplay = subdomainEntered ? domainToCheck + constants.tld : '';
+    const domainRequest = subdomainEntered ? this.state.domainRequest : null;
+    this.setState(
+      {
+        subdomain,
+        domainToCheck,
+        isValidDomain,
+        purchaseClicked,
+        subdomainToDisplay,
+        domainRequest
+      },
+      () => {
+        if (isValidDomain) {
+          this.props.resolveDomainRequested(domainToCheck, this.props.networkConfig.isTestnet);
+        }
+        if (!subdomainEntered) {
+          this.props.resetTransactionRequested();
+        }
+      }
+    );
   };
 
   private onFocus = () => {
-    this.props.getFromRequested();
     this.props.getNonceRequested();
-    if (this.state.subdomain.length > 0) {
-      this.updateTxFields();
-    }
-    this.setState({ isFocused: true });
+    this.updateTxFields();
+    this.setState({
+      isFocused: true,
+      txRepairMode: false
+    });
   };
 
   private onBlur = () => this.setState({ isFocused: false });
 
-  private generateDescription = (subdomain: string) => {
-    const { supportedNetwork, address, network } = this.state;
+  private generateDescription = () => {
+    const { supportedNetwork, address, network, subdomainToDisplay } = this.state;
     if (supportedNetwork) {
       const addr = address.length > 0 ? address : translateRaw('ETHSIMPLE_DESC_DEFAULT_NO_ADDR');
-      const cutoff = subdomain.length > 10 ? 0 : 15;
+      const cutoff = subdomainToDisplay.length > 24 ? 0 : 15;
       return translate('ETHSIMPLE_DESC', {
         $subdomain:
-          (subdomain.length > 0 ? subdomain : translateRaw('ETHSIMPLE_DESC_DEFAULT_SUBDOMAIN')) +
-          constants.esFullDomain,
+          subdomainToDisplay.length > 0
+            ? subdomainToDisplay
+            : translateRaw('ETHSIMPLE_DESC_DEFAULT_SUBDOMAIN'),
         $addr: addr.substring(0, addr.length - cutoff) + (cutoff > 0 ? '...' : '')
       });
     } else {
@@ -366,18 +378,20 @@ class ETHSimpleClass extends React.Component<Props, State> {
   };
 
   private generateStatusLabel = () => {
-    const {
-      subdomain,
-      isValidDomain,
-      isAvailableDomain,
-      purchaseClicked,
-      ownedByAddress,
-      subdomainToDisplay
-    } = this.state;
-    const { isResolving } = this.props;
+    const { subdomain, isValidDomain, purchaseClicked, domainToCheck } = this.state;
+    const { isResolving, wallet, domainRequests } = this.props;
     let markup = null;
     let icon = null;
     let className = '';
+    let refreshIcon = null;
+    const req = domainRequests[domainToCheck];
+    const isAvailableDomain =
+      !!req && !!req.data ? (req.data as IBaseSubdomainRequest).mode === NameState.Open : false;
+    const ownedByThisAddress =
+      !!req && !!req.data
+        ? (req.data as IBaseSubdomainRequest).ownerAddress ===
+          this.props.toChecksumAddress(wallet.getAddressString())
+        : false;
 
     if (!!subdomain && !isValidDomain) {
       className = 'help-block is-invalid';
@@ -386,24 +400,37 @@ class ETHSimpleClass extends React.Component<Props, State> {
       className = 'help-block is-semivalid';
       icon = <Spinner />;
       markup = `  Resolving ${subdomain + constants.esFullDomain}...`;
+      translate('ETHSIMPLE_STATUS_RESOLVING_SUBDOMAIN', {
+        $domain: (req.data as IBaseSubdomainRequest).name + constants.tld
+      });
     } else if (
-      !!subdomainToDisplay &&
       !purchaseClicked &&
       !isAvailableDomain &&
       isValidDomain &&
-      !ownedByAddress
+      !ownedByThisAddress &&
+      !!req &&
+      !!req.data
     ) {
       className = 'help-block is-invalid';
       icon = <i className="fa fa-remove" />;
-      markup = translate('ETHSIMPLE_STATUS_SUBDOMAIN_UNAVAILABLE', {
-        $domain: subdomainToDisplay
+      markup = translate('ETHSIMPLE_STATUS_RESOLVING_SUBDOMAIN', {
+        $domain: subdomain + constants.esFullDomain
       });
-    } else if (!!subdomainToDisplay && !purchaseClicked && isAvailableDomain && isValidDomain) {
+    } else if (!purchaseClicked && isAvailableDomain && isValidDomain && !!req && !!req.data) {
       className = 'help-block is-valid';
       icon = <i className="fa fa-check" />;
       markup = translate('ETHSIMPLE_STATUS_SUBDOMAIN_AVAILABLE', {
-        $domain: subdomainToDisplay
+        $domain: (req.data as IBaseSubdomainRequest).name + constants.tld
       });
+      refreshIcon = (
+        <button
+          className="AccountInfo-section-refresh"
+          onClick={this.refreshDomainResolution}
+          style={{ marginLeft: 4 }}
+        >
+          <i className="fa fa-refresh" />
+        </button>
+      );
     } else if (!!subdomain && purchaseClicked && !this.props.transactionBroadcasted) {
       className = 'help-block is-semivalid';
       icon = <Spinner />;
@@ -412,11 +439,16 @@ class ETHSimpleClass extends React.Component<Props, State> {
       className = 'help-block is-semivalid';
       icon = <Spinner />;
       markup = translate('ETHSIMPLE_STATUS_WAIT_FOR_MINE');
-    } else if (!!subdomainToDisplay && !purchaseClicked && !isAvailableDomain && ownedByAddress) {
+    } else if (
+      !purchaseClicked &&
+      !isAvailableDomain &&
+      ownedByThisAddress &&
+      !!req &&
+      !!req.data
+    ) {
       className = 'help-block is-valid';
-      icon = <i className="fa fa-check" />;
       markup = translate('ETHSIMPLE_STATUS_SUBDOMAIN_OWNED_BY_USER', {
-        $domain: subdomainToDisplay
+        $domain: (req.data as IBaseSubdomainRequest).name + constants.tld
       });
     }
 
@@ -425,12 +457,13 @@ class ETHSimpleClass extends React.Component<Props, State> {
         <span className={className}>
           {icon}
           {markup}
+          {refreshIcon}
         </span>
       </React.Fragment>
     );
   };
 
-  private setAddressAndNetworkFromWallet = (supportedNetwork: boolean) => {
+  private setAddressAndNetwork = (supportedNetwork: boolean) => {
     if (!!this.props.wallet) {
       const network = (this.props.wallet as Web3Wallet).network;
       if (network !== this.state.network) {
@@ -458,21 +491,29 @@ class ETHSimpleClass extends React.Component<Props, State> {
     const encodedInputData = this.state.ethSimpleSubdomainRegistrarInstance.purchaseSubdomain.encodeInput(
       Object.keys(inputs).reduce((accu, key) => ({ ...accu, [key]: inputs[key] }), {})
     );
-    this.props.inputData(encodedInputData);
+    return encodedInputData;
+  };
+
+  private getESContractAddress = () => {
+    return !this.props.networkConfig.isTestnet
+      ? constants.subdomainRegistrarAddr.mainnet
+      : constants.subdomainRegistrarAddr.ropsten;
   };
 
   private updateTxFields = () => {
-    const ethSimpleSubdomainRegistrarAddr = !this.props.networkConfig.isTestnet
-      ? constants.subdomainRegistrarAddr.mainnet
-      : constants.subdomainRegistrarAddr.ropsten;
-    this.props.setToField({
-      raw: ethSimpleSubdomainRegistrarAddr,
-      value: Address(ethSimpleSubdomainRegistrarAddr)
-    });
-    this.props.setValueField({
-      raw: constants.subdomainPriceETH,
-      value: Wei(constants.subdomainPriceWei)
-    });
+    if (this.state.subdomain.length > 0) {
+      const ethSimpleSubdomainRegistrarAddr = this.getESContractAddress();
+      this.props.setToField({
+        raw: ethSimpleSubdomainRegistrarAddr,
+        value: Address(ethSimpleSubdomainRegistrarAddr)
+      });
+      this.props.setValueField({
+        raw: constants.subdomainPriceETH,
+        value: Wei(constants.subdomainPriceWei)
+      });
+      this.props.inputData(this.buildTxData());
+      this.props.inputGasLimit(constants.purchaseSubdomainGasLimit);
+    }
   };
 
   private purchaseSubdomain = (ev: React.FormEvent<HTMLElement>) => {
@@ -481,7 +522,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
   };
 
   private verifyTx = () => {
-    if (this.checkNetworkFields()) {
+    if (this.checkNetworkFields() && this.checkTxFields()) {
       this.setState(
         {
           purchaseClicked: true,
@@ -503,8 +544,18 @@ class ETHSimpleClass extends React.Component<Props, State> {
     const success = 'SUCCESS';
     if (
       txNetworkFields.gasEstimationStatus === success &&
-      txNetworkFields.getFromStatus === success &&
       txNetworkFields.getNonceStatus === success
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  private checkTxFields = () => {
+    const txFields = getTransactionFields(this.props.transaction);
+    if (
+      this.props.toChecksumAddress(txFields.to) === this.getESContractAddress() &&
+      txFields.data === this.buildTxData()
     ) {
       return true;
     }
@@ -515,12 +566,8 @@ class ETHSimpleClass extends React.Component<Props, State> {
     const { txNetworkFields } = this.props;
     const success = 'SUCCESS';
     this.setState({ txRepairMode: true }, () => {
-      if (txNetworkFields.gasEstimationStatus !== success) {
-        this.buildTxData();
+      if (!this.checkNetworkFields() || !this.checkTxFields()) {
         this.updateTxFields();
-      }
-      if (txNetworkFields.getFromStatus !== success) {
-        this.props.getFromRequested();
       }
       if (txNetworkFields.getNonceStatus !== success) {
         this.props.getNonceRequested();
@@ -530,19 +577,20 @@ class ETHSimpleClass extends React.Component<Props, State> {
 
   private purchaseComplete = () => {
     const { subdomain } = this.state;
-    this.props.resetTransactionRequested();
-    this.props.getNonceRequested();
     this.props.subdomainPurchased(subdomain + constants.esFullDomain);
-    this.manageNotifications(subdomain);
-    this.setState({
-      // isAvailableDomain: false,
-      purchaseClicked: false,
-      ownedByAddress: true
-    });
-    setTimeout(this.lookupPurchasedSubdomain, 5000);
+    this.handleNotifications();
+    this.setState(
+      {
+        purchaseClicked: false
+      },
+      () => {
+        this.refreshDomainResolution();
+        this.props.getNonceRequested();
+      }
+    );
   };
 
-  private lookupPurchasedSubdomain = () => {
+  private refreshDomainResolution = () => {
     const { subdomain } = this.state;
     this.props.resolveDomainRequested(
       subdomain + constants.esDomain,
@@ -551,20 +599,28 @@ class ETHSimpleClass extends React.Component<Props, State> {
     );
   };
 
-  private manageNotifications = (subdomain: string) => {
-    const { notifications, broadcast, indexingHash } = this.props;
+  private handleNotifications = () => {
+    this.closeTxBroadcastedNotification();
+    this.showTxConfirmedNotification();
+  };
+
+  private closeTxBroadcastedNotification = () => {
+    const { notifications, currentTransaction } = this.props;
     for (let i = 0; i < notifications.length; i++) {
       const notif = notifications[i];
       if (
         !!notif.componentConfig &&
-        !!indexingHash &&
-        notif.componentConfig.txHash ===
-          (broadcast as any)[indexingHash as string]['broadcastedHash']
+        !!currentTransaction &&
+        notif.componentConfig.txHash === currentTransaction.broadcastedHash
       ) {
         this.props.closeNotification(notif);
         break;
       }
     }
+  };
+
+  private showTxConfirmedNotification = () => {
+    const { subdomain } = this.state;
     this.props.showNotification(
       'success',
       translateRaw('ETHSIMPLE_SUBDOMAIN_TX_CONFIRMED_MODAL_DESC', {
@@ -576,7 +632,6 @@ class ETHSimpleClass extends React.Component<Props, State> {
 
   private openModal = () => {
     const { currentTransaction } = this.props;
-
     if (
       currentTransaction &&
       (currentTransaction.broadcastSuccessful || currentTransaction.isBroadcasting)
@@ -611,36 +666,31 @@ class ETHSimpleClass extends React.Component<Props, State> {
   };
 
   private getTxStatus = () => {
-    this.setState({ pollTimeout: false });
-    const { broadcast, indexingHash } = this.props;
-    if (
-      this.state.purchaseClicked &&
-      !!indexingHash &&
-      !!broadcast &&
-      !!broadcast[indexingHash] &&
-      !!(broadcast as any)[indexingHash as string].broadcastedHash
-    ) {
-      this.props.fetchTransactionData((broadcast as any)[indexingHash as string]
-        .broadcastedHash as string);
-    }
+    this.setState({ pollTimeout: false }, () => {
+      const { currentTransaction } = this.props;
+      if (
+        this.state.purchaseClicked &&
+        !!currentTransaction &&
+        !!currentTransaction.broadcastedHash
+      ) {
+        this.props.fetchTransactionData(currentTransaction.broadcastedHash);
+      }
+    });
   };
 }
 
 function mapStateToProps(state: AppState): StateProps {
   return {
-    broadcast: state.transaction.broadcast,
     txNetworkFields: state.transaction.network,
     domainRequests: state.ens.domainRequests,
     notifications: state.notifications,
     txState: state.transactions.txData,
-    indexingHash: state.transaction.sign.indexingHash,
     isResolving: ensSelectors.getResolvingDomain(state),
     networkConfig: configSelectors.getNetworkConfig(state),
     toChecksumAddress: configSelectors.getChecksumAddressFn(state),
     ...derivedSelectors.getTransaction(state),
     serializedTransaction: derivedSelectors.getSerializedTransaction(state),
     networkRequestPending: transactionNetworkSelectors.isNetworkRequestPending(state),
-    validGasPrice: transactionSelectors.isValidGasPrice(state),
     validGasLimit: transactionSelectors.isValidGasLimit(state),
     currentTransaction: transactionSelectors.getCurrentTransactionStatus(state),
     transactionBroadcasted: transactionSelectors.currentTransactionBroadcasted(state),
@@ -651,13 +701,13 @@ function mapStateToProps(state: AppState): StateProps {
 }
 
 const mapDispatchToProps: DispatchProps = {
-  resolveDomainRequested: ensActions.resolveDomainRequested,
   showNotification: notificationsActions.showNotification,
   closeNotification: notificationsActions.closeNotification,
+  resolveDomainRequested: ensActions.resolveDomainRequested,
   setToField: transactionFieldsActions.setToField,
   setValueField: transactionFieldsActions.setValueField,
   inputData: transactionFieldsActions.inputData,
-  getFromRequested: transactionNetworkActions.getFromRequested,
+  inputGasLimit: transactionFieldsActions.inputGasLimit,
   getNonceRequested: transactionNetworkActions.getNonceRequested,
   resetTransactionRequested: transactionFieldsActions.resetTransactionRequested,
   signTransactionRequested: transactionSignActions.signTransactionRequested,

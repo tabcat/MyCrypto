@@ -1,9 +1,8 @@
 import React from 'react';
 import { connect } from 'react-redux';
 import EthTx from 'ethereumjs-tx';
-import BN from 'bn.js';
 
-import translate from 'translations';
+import { translate, translateRaw } from 'translations';
 import { TransactionState, TransactionReceipt } from 'types/transactions';
 import * as derivedSelectors from 'features/selectors';
 import { AppState } from 'features/reducers';
@@ -20,24 +19,23 @@ import {
 } from 'features/transaction';
 import { transactionsActions } from 'features/transactions';
 import { ensActions } from 'features/ens';
+import { notificationsActions } from 'features/notifications';
 import Contract from 'libs/contracts';
 import ENS from 'libs/ens/contracts';
 import networkConfigs from 'libs/ens/networkConfigs';
 import { IBaseAddressRequest } from 'libs/ens';
+import { Address, Wei } from 'libs/units';
+import { getTransactionFields } from 'libs/transaction/utils/ether';
 import { Spinner } from 'components/ui';
-import { Address } from 'libs/units';
-import { notificationsActions } from 'features/notifications';
 import { ConfirmationModal } from 'components/ConfirmationModal';
+import './AccountNameStatus.scss';
 
 interface StateProps {
   wallet: AppState['wallet']['inst'];
-  broadcast: AppState['transaction']['broadcast'];
   serializedTransaction: AppState['transaction']['sign']['web3']['transaction'];
   notifications: AppState['notifications'];
-  indexingHash: AppState['transaction']['sign']['indexingHash'];
   txNetworkFields: AppState['transaction']['network'];
   addressRequests: AppState['ens']['addressRequests'];
-  validGasPrice: boolean;
   validGasLimit: boolean;
   networkRequestPending: boolean;
   isFullTransaction: boolean;
@@ -54,11 +52,10 @@ interface DispatchProps {
   showNotification: notificationsActions.TShowNotification;
   closeNotification: notificationsActions.TCloseNotification;
   reverseResolveAddressRequested: ensActions.TReverseResolveAddressRequested;
-  resetTransactionRequested: transactionFieldsActions.TResetTransactionRequested;
-  inputData: transactionFieldsActions.TInputData;
   setToField: transactionFieldsActions.TSetToField;
   setValueField: transactionFieldsActions.TSetValueField;
-  getFromRequested: transactionNetworkActions.TGetFromRequested;
+  inputData: transactionFieldsActions.TInputData;
+  inputGasLimit: transactionFieldsActions.TInputGasLimit;
   getNonceRequested: transactionNetworkActions.TGetNonceRequested;
   signTransactionRequested: transactionSignActions.TSignTransactionRequested;
   fetchTransactionData: transactionsActions.TFetchTransactionData;
@@ -77,7 +74,6 @@ interface State {
   reverseRegistrarInstance: Contract;
   showModal: boolean;
   hover: boolean;
-  labelMatchesPublicName: boolean | null;
   setNameButtonClicked: boolean;
   initialPollRequested: boolean;
   pollTimeout: boolean;
@@ -89,7 +85,6 @@ class AccountNameStatus extends React.Component<Props, State> {
     reverseRegistrarInstance: ENS.reverse,
     showModal: false,
     hover: false,
-    labelMatchesPublicName: null,
     setNameButtonClicked: false,
     initialPollRequested: false,
     pollTimeout: false,
@@ -121,70 +116,64 @@ class AccountNameStatus extends React.Component<Props, State> {
 
   public componentDidUpdate(prevProps: Props) {
     const {
-      broadcast,
-      addressLabel,
       txState,
       purchasedSubdomainLabel,
-      addressRequest,
       isFullTransaction,
-      validGasPrice,
       validGasLimit,
       networkRequestPending,
-      indexingHash,
-      txNetworkFields
+      txNetworkFields,
+      currentTransaction
     } = this.props;
-    const { setNameButtonClicked, initialPollRequested, pollTimeout, txRepairMode } = this.state;
+    const { setNameButtonClicked, initialPollRequested, pollTimeout, txRepairMode } = this.state; // , claimMode
     if (purchasedSubdomainLabel !== prevProps.purchasedSubdomainLabel) {
       if (!!purchasedSubdomainLabel) {
-        const labelMatchesPublicName =
-          purchasedSubdomainLabel === (addressRequest as IBaseAddressRequest).name;
-        this.setState({ labelMatchesPublicName }, () => {
-          setTimeout(this.makeTx, 1000);
-        });
+        this.updateTxFields();
       }
     }
-    if (addressLabel !== prevProps.addressLabel || addressRequest !== prevProps.addressRequest) {
-      if (!!addressRequest) {
-        const labelMatchesPublicName = !!purchasedSubdomainLabel
-          ? purchasedSubdomainLabel === (addressRequest as IBaseAddressRequest).name
-          : addressLabel === (addressRequest as IBaseAddressRequest).name;
-        this.setState({ labelMatchesPublicName });
+    if (txNetworkFields !== prevProps.txNetworkFields) {
+      if (
+        txRepairMode &&
+        !networkRequestPending &&
+        isFullTransaction &&
+        validGasLimit &&
+        this.checkNetworkFields()
+      ) {
+        this.verifyTx();
       }
     }
-    if (
-      txNetworkFields !== prevProps.txNetworkFields &&
-      txRepairMode &&
-      !networkRequestPending &&
-      isFullTransaction &&
-      validGasPrice &&
-      validGasLimit &&
-      this.checkNetworkFields()
-    ) {
-      this.verifyTx();
-    }
-    if (broadcast !== prevProps.broadcast) {
+    if (currentTransaction !== prevProps.currentTransaction) {
       if (
         setNameButtonClicked &&
         !initialPollRequested &&
-        !!indexingHash &&
-        !!(broadcast as any)[indexingHash as string] &&
-        (broadcast as any)[indexingHash as string].broadcastSuccessful
+        !!currentTransaction &&
+        currentTransaction.broadcastSuccessful
       ) {
         this.setState({ initialPollRequested: true });
         this.pollForHash();
         this.handleNoHover();
+      } else if (
+        setNameButtonClicked &&
+        !!currentTransaction &&
+        !!prevProps.currentTransaction &&
+        !prevProps.currentTransaction.broadcastSuccessful &&
+        prevProps.currentTransaction.isBroadcasting &&
+        !currentTransaction.broadcastSuccessful &&
+        !currentTransaction.isBroadcasting
+      ) {
+        this.setState({
+          setNameButtonClicked: false
+        });
       }
     }
     if (txState !== prevProps.txState) {
       if (
         setNameButtonClicked &&
         initialPollRequested &&
-        !!txState &&
-        !!txState[(broadcast as any)[indexingHash as string].broadcastedHash as string].receipt &&
-        !!(txState[(broadcast as any)[indexingHash as string].broadcastedHash as string]
-          .receipt as TransactionReceipt).status &&
-        !!(txState[(broadcast as any)[indexingHash as string].broadcastedHash as string]
-          .receipt as TransactionReceipt).status === true
+        !!currentTransaction &&
+        !!currentTransaction.broadcastedHash &&
+        !!txState[currentTransaction.broadcastedHash].receipt &&
+        !!(txState[currentTransaction.broadcastedHash].receipt as TransactionReceipt).status &&
+        (txState[currentTransaction.broadcastedHash].receipt as TransactionReceipt).status === 1
       ) {
         this.setNameComplete();
       } else if (!pollTimeout) {
@@ -195,69 +184,56 @@ class AccountNameStatus extends React.Component<Props, State> {
   }
 
   private generateAccountNameButton = () => {
-    const { hover, setNameButtonClicked, labelMatchesPublicName } = this.state;
-    const { addressLabel, purchasedSubdomainLabel, addressRequest } = this.props;
-    if (!addressRequest) {
+    const { hover, setNameButtonClicked } = this.state;
+    const { addressRequest, purchasedSubdomainLabel } = this.props;
+    if (!addressRequest && (!purchasedSubdomainLabel || purchasedSubdomainLabel.length < 1)) {
       return null;
     }
-    let divClassName = 'help-block is-valid AccountInfo-address-addr--small';
-    let iconClassName = 'fa fa-check';
-    let spanRole = '';
-    let spanClassName = '';
-    let title = translate('ENS_REVERSE_RESOLVE_NAME_PUBLIC');
-    let nameToSet = !!purchasedSubdomainLabel ? purchasedSubdomainLabel : addressLabel;
-    let spinner = null;
-    const reverseResolvedNameNotNull = !!addressRequest
+    const showName = !!addressRequest && addressRequest.name.length > 0;
+    const iconBaseName = 'help-block is-valid status-icon fa fa-';
+    const spanBaseName = 'help-block status-label is-';
+    const outerDivClassName = 'AccountNameStatus-name-wrapper';
+    const divClassName = 'help-block AccountNameStatus-name-addr--small';
+    const labelClassName = 'AccountNameStatus-name-label';
+    const labelValue = showName
       ? (addressRequest as IBaseAddressRequest).name
-      : '';
-
-    if (!labelMatchesPublicName) {
-      if (setNameButtonClicked) {
-        spinner = <Spinner />;
-        iconClassName = '';
-        divClassName = 'help-block is-semivalid';
-        spanClassName = 'AccountInfo-address-addr--small';
-        if (this.props.transactionBroadcasted) {
-          title = translate('ETHSIMPLE_STATUS_WAIT_FOR_MINE');
-        } else {
-          title = translate('ETHSIMPLE_STATUS_WAIT_FOR_USER_CONFIRM');
-        }
-      } else if (hover) {
-        spanRole = 'button';
-        title = translate('ENS_REVERSE_RESOLVE_UPDATE_NAME', {
-          $addressLabel: nameToSet
-        });
-      } else {
-        divClassName = 'help-block is-invalid';
-        iconClassName = '';
-        spanRole = 'button';
-        spanClassName = 'AccountInfo-address-addr--small';
-        title =
-          reverseResolvedNameNotNull === ''
-            ? translate('ENS_REVERSE_RESOLVE_NAME_EMPTY')
-            : translate('ENS_REVERSE_RESOLVE_MISMATCH', {
-                $addressLabel: nameToSet,
-                $accountName: reverseResolvedNameNotNull
-              });
-      }
-    }
+      : purchasedSubdomainLabel;
+    const iconClassName =
+      iconBaseName + (showName ? 'check' : setNameButtonClicked ? '' : hover ? 'check' : 'remove');
+    const spanRole = showName ? '' : 'button';
+    const spanClassName =
+      spanBaseName +
+      (showName ? 'valid' : setNameButtonClicked ? 'semivalid' : hover ? 'valid' : 'invalid');
+    const title = showName
+      ? translate('ENS_REVERSE_RESOLVE_NAME_PUBLIC')
+      : setNameButtonClicked
+        ? translate('ENS_REVERSE_RESOLVE_TX_WAIT')
+        : hover
+          ? translate('ENS_REVERSE_RESOLVE_UPDATE_NAME', {
+              $accountName: !!purchasedSubdomainLabel ? purchasedSubdomainLabel : ''
+            })
+          : translate('ENS_REVERSE_RESOLVE_NAME_EMPTY');
+    const spinner = setNameButtonClicked ? <Spinner /> : null;
 
     return (
       <React.Fragment>
-        <div className={divClassName} style={{ marginBottom: 0 }}>
-          <i className={iconClassName} />
-          <span role={spanRole} onClick={this.setName} className={spanClassName}>
-            {spinner}
-            {title}
-          </span>
+        <div className={outerDivClassName}>
+          <div className={divClassName} style={{ marginBottom: 0, display: 'inline-flex' }}>
+            <label className={labelClassName}>{labelValue}</label>
+            <i className={iconClassName} style={{ marginRight: 1 }} />
+            <span role={spanRole} onClick={this.setName} className={spanClassName}>
+              {spinner}
+              {title}
+            </span>
+          </div>
         </div>
       </React.Fragment>
     );
   };
 
   private handleHover = () => {
-    if (!this.state.labelMatchesPublicName && !this.state.setNameButtonClicked) {
-      this.makeTx();
+    const { addressRequest } = this.props;
+    if (!(!!addressRequest && addressRequest.name.length > 0)) {
       this.setState({ hover: true });
     }
   };
@@ -266,27 +242,33 @@ class AccountNameStatus extends React.Component<Props, State> {
     this.setState({ hover: false });
   };
 
-  private makeTx = () => {
-    let nameToSet = !!this.props.purchasedSubdomainLabel
-      ? this.props.purchasedSubdomainLabel
-      : this.props.addressLabel;
+  private buildTxData = () => {
+    const nameToSet = this.props.purchasedSubdomainLabel;
     const inputs = { name: nameToSet } as any;
     const encodedInputData = this.state.reverseRegistrarInstance.setName.encodeInput(Object.keys(
       inputs
     ).reduce((accu, key) => ({ ...accu, [key]: inputs[key] }), {}) as ReturnType<typeof inputs>);
+    return encodedInputData;
+  };
 
-    const toField = networkConfigs.main.public.reverse;
-    const valueField = '0';
+  private getToAddress = () => {
+    return networkConfigs.main.public.reverse;
+  };
 
+  private updateTxFields = () => {
+    const toAddress = this.getToAddress();
+    const value = '0';
+    const gasLimit = '46818';
     this.props.setToField({
-      raw: toField,
-      value: Address(toField)
+      raw: toAddress,
+      value: Address(toAddress)
     });
     this.props.setValueField({
-      raw: valueField,
-      value: new BN(valueField)
+      raw: value,
+      value: Wei(value)
     });
-    this.props.inputData(encodedInputData);
+    this.props.inputData(this.buildTxData());
+    this.props.inputGasLimit(gasLimit);
   };
 
   private setName = (ev: React.FormEvent<HTMLElement>) => {
@@ -295,7 +277,7 @@ class AccountNameStatus extends React.Component<Props, State> {
   };
 
   private verifyTx = () => {
-    if (this.checkNetworkFields()) {
+    if (this.checkNetworkFields() && this.checkTxFields()) {
       this.setState(
         {
           setNameButtonClicked: true,
@@ -317,9 +299,16 @@ class AccountNameStatus extends React.Component<Props, State> {
     const success = 'SUCCESS';
     if (
       txNetworkFields.gasEstimationStatus === success &&
-      txNetworkFields.getFromStatus === success &&
       txNetworkFields.getNonceStatus === success
     ) {
+      return true;
+    }
+    return false;
+  };
+
+  private checkTxFields = () => {
+    const txFields = getTransactionFields(this.props.transaction);
+    if (txFields.to === this.getToAddress() && txFields.data === this.buildTxData()) {
       return true;
     }
     return false;
@@ -329,11 +318,8 @@ class AccountNameStatus extends React.Component<Props, State> {
     const { txNetworkFields } = this.props;
     const success = 'SUCCESS';
     this.setState({ txRepairMode: true }, () => {
-      if (txNetworkFields.gasEstimationStatus !== success) {
-        this.makeTx();
-      }
-      if (txNetworkFields.getFromStatus !== success) {
-        this.props.getFromRequested();
+      if (!this.checkNetworkFields() || !this.checkTxFields()) {
+        this.updateTxFields();
       }
       if (txNetworkFields.getNonceStatus !== success) {
         this.props.getNonceRequested();
@@ -344,7 +330,7 @@ class AccountNameStatus extends React.Component<Props, State> {
   private setNameComplete = () => {
     const { address } = this.props;
     this.props.getNonceRequested();
-    this.manageNotifications();
+    this.handleNotifications();
     this.setState({
       setNameButtonClicked: false,
       initialPollRequested: false
@@ -354,26 +340,40 @@ class AccountNameStatus extends React.Component<Props, State> {
     }
   };
 
-  private manageNotifications = () => {
-    const { notifications, broadcast, indexingHash } = this.props;
+  private handleNotifications = () => {
+    this.closeTxBroadcastedNotification();
+    this.showTxConfirmedNotification();
+  };
+
+  private closeTxBroadcastedNotification = () => {
+    const { notifications, currentTransaction } = this.props;
     for (let i = 0; i < notifications.length; i++) {
       const notif = notifications[i];
       if (
         !!notif.componentConfig &&
-        !!indexingHash &&
-        notif.componentConfig.txHash ===
-          (broadcast as any)[indexingHash as string]['broadcastedHash']
+        !!currentTransaction &&
+        notif.componentConfig.txHash === currentTransaction.broadcastedHash
       ) {
         this.props.closeNotification(notif);
         break;
       }
     }
-    this.props.showNotification('success', 'Your public account name has been updated!', 10000);
+  };
+
+  private showTxConfirmedNotification = () => {
+    const { purchasedSubdomainLabel } = this.props;
+    const accountName = !!purchasedSubdomainLabel ? purchasedSubdomainLabel : '';
+    this.props.showNotification(
+      'success',
+      translateRaw('ENS_REVERSE_RESOLVE_TX_CONFIRMED_MODAL_DESC', {
+        $accountName: accountName
+      }),
+      10000
+    );
   };
 
   private openModal = () => {
     const { currentTransaction } = this.props;
-
     if (
       currentTransaction &&
       (currentTransaction.broadcastSuccessful || currentTransaction.isBroadcasting)
@@ -408,35 +408,30 @@ class AccountNameStatus extends React.Component<Props, State> {
   };
 
   private getTxStatus = () => {
-    this.setState({ pollTimeout: false });
-    const { broadcast, indexingHash } = this.props;
-    if (
-      this.state.setNameButtonClicked &&
-      !!indexingHash &&
-      !!broadcast &&
-      !!broadcast[indexingHash] &&
-      !!(broadcast as any)[indexingHash as string].broadcastedHash
-    ) {
-      this.props.fetchTransactionData((broadcast as any)[indexingHash as string]
-        .broadcastedHash as string);
-    }
+    this.setState({ pollTimeout: false }, () => {
+      const { currentTransaction } = this.props;
+      if (
+        this.state.setNameButtonClicked &&
+        !!currentTransaction &&
+        !!currentTransaction.broadcastedHash
+      ) {
+        this.props.fetchTransactionData(currentTransaction.broadcastedHash);
+      }
+    });
   };
 }
 
 function mapStateToProps(state: AppState): StateProps {
   return {
     wallet: walletSelectors.getWalletInst(state),
-    broadcast: state.transaction.broadcast,
     txNetworkFields: state.transaction.network,
     notifications: state.notifications,
     addressRequests: state.ens.addressRequests,
-    indexingHash: state.transaction.sign.indexingHash,
     serializedTransaction: derivedSelectors.getSerializedTransaction(state),
     txState: state.transactions.txData,
     networkConfig: configSelectors.getNetworkConfig(state),
     ...derivedSelectors.getTransaction(state),
     networkRequestPending: transactionNetworkSelectors.isNetworkRequestPending(state),
-    validGasPrice: transactionSelectors.isValidGasPrice(state),
     validGasLimit: transactionSelectors.isValidGasLimit(state),
     currentTransaction: transactionSelectors.getCurrentTransactionStatus(state),
     transactionBroadcasted: transactionSelectors.currentTransactionBroadcasted(state),
@@ -450,11 +445,10 @@ const mapDispatchToProps: DispatchProps = {
   showNotification: notificationsActions.showNotification,
   closeNotification: notificationsActions.closeNotification,
   reverseResolveAddressRequested: ensActions.reverseResolveAddressRequested,
-  resetTransactionRequested: transactionFieldsActions.resetTransactionRequested,
-  inputData: transactionFieldsActions.inputData,
-  setValueField: transactionFieldsActions.setValueField,
   setToField: transactionFieldsActions.setToField,
-  getFromRequested: transactionNetworkActions.getFromRequested,
+  setValueField: transactionFieldsActions.setValueField,
+  inputData: transactionFieldsActions.inputData,
+  inputGasLimit: transactionFieldsActions.inputGasLimit,
   getNonceRequested: transactionNetworkActions.getNonceRequested,
   signTransactionRequested: transactionSignActions.signTransactionRequested,
   fetchTransactionData: transactionsActions.fetchTransactionData

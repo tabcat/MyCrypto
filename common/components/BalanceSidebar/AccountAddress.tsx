@@ -42,6 +42,7 @@ interface State {
   labelInputTouched: boolean;
   addressLabel: string;
   addressRequest: IBaseAddressRequest | null;
+  reverseResolvedNameExists: boolean | null;
 }
 
 class AccountAddress extends React.Component<Props, State> {
@@ -50,7 +51,8 @@ class AccountAddress extends React.Component<Props, State> {
     editingLabel: false,
     labelInputTouched: false,
     addressLabel: '',
-    addressRequest: null
+    addressRequest: null,
+    reverseResolvedNameExists: false
   };
 
   private goingToClearCopied: number | null = null;
@@ -79,7 +81,10 @@ class AccountAddress extends React.Component<Props, State> {
     if (addressRequests !== prevProps.addressRequests) {
       const req = addressRequests[address];
       if (!!req.data) {
-        this.setState({ addressRequest: req.data });
+        this.setState({
+          addressRequest: req.data,
+          reverseResolvedNameExists: req.data.name.length > 0
+        });
       }
     }
     if (addressLabel !== prevProps.addressLabel) {
@@ -88,12 +93,17 @@ class AccountAddress extends React.Component<Props, State> {
   }
 
   public render() {
-    const { address, addressLabel } = this.props;
-    const { copied } = this.state;
-    const labelContent = this.generateLabelContent();
+    const { address, addressLabel, purchasedSubdomainLabel } = this.props;
+    const { copied, reverseResolvedNameExists } = this.state;
+    const labelContent =
+      reverseResolvedNameExists || !!purchasedSubdomainLabel
+        ? this.generateAccountNameLabel()
+        : this.generateLabelContent();
     const labelButton = this.generateLabelButton();
     const addressClassName = `AccountInfo-address-addr ${
-      addressLabel ? 'AccountInfo-address-addr--small' : ''
+      addressLabel || reverseResolvedNameExists || !!purchasedSubdomainLabel
+        ? 'AccountInfo-address-addr--small'
+        : ''
     }`;
 
     return (
@@ -117,9 +127,11 @@ class AccountAddress extends React.Component<Props, State> {
                 <span>{translateRaw(copied ? 'COPIED' : 'COPY_ADDRESS')}</span>
               </div>
             </CopyToClipboard>
-            <div className="AccountInfo-label" title={translateRaw('EDIT_LABEL_2')}>
-              {labelButton}
-            </div>
+            {!reverseResolvedNameExists && (
+              <div className="AccountInfo-label" title={translateRaw('EDIT_LABEL_2')}>
+                {labelButton}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -142,11 +154,11 @@ class AccountAddress extends React.Component<Props, State> {
   private setLabelInputRef = (node: HTMLInputElement) => (this.labelInput = node);
 
   private generateLabelContent = () => {
-    const { addressLabel, entry: { temporaryLabel, labelError }, networkConfig } = this.props;
+    const { addressLabel, entry: { temporaryLabel, labelError } } = this.props; // , networkConfig
     const { editingLabel, labelInputTouched } = this.state;
     const newLabelSameAsPrevious = temporaryLabel === addressLabel;
     const labelInputTouchedWithError = labelInputTouched && !newLabelSameAsPrevious && labelError;
-    const accountNameStatus = networkConfig.isTestnet ? null : this.generateAccountNameStatus();
+    // const accountNameStatus = networkConfig.isTestnet ? null : this.generateAccountNameStatus();
 
     let labelContent = null;
 
@@ -173,7 +185,6 @@ class AccountAddress extends React.Component<Props, State> {
     } else {
       labelContent = (
         <React.Fragment>
-          {accountNameStatus}
           {addressLabel.length > 0 && (
             <label className="AccountInfo-address-label">{addressLabel}</label>
           )}
@@ -184,7 +195,7 @@ class AccountAddress extends React.Component<Props, State> {
     return labelContent;
   };
 
-  private generateAccountNameStatus = () => {
+  private generateAccountNameLabel = () => {
     const { address, purchasedSubdomainLabel } = this.props;
     const { addressLabel, addressRequest } = this.state;
     return (
