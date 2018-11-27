@@ -412,7 +412,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
       className = 'help-block is-semivalid';
       icon = <Spinner />;
       markup = translate('ETHSIMPLE_STATUS_RESOLVING_SUBDOMAIN', {
-        $domain: domainToCheck + constants.tld
+        $domain: subdomain + constants.esFullDomain
       });
     } else if (
       !purchaseClicked &&
@@ -424,7 +424,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
     ) {
       className = 'help-block is-invalid';
       icon = <i className="fa fa-remove" />;
-      markup = translate('ETHSIMPLE_STATUS_RESOLVING_SUBDOMAIN', {
+      markup = translate('ETHSIMPLE_STATUS_SUBDOMAIN_UNAVAILABLE', {
         $domain: subdomain + constants.esFullDomain
       });
     } else if (!purchaseClicked && isAvailableDomain && isValidDomain && !!req && !!req.data) {
