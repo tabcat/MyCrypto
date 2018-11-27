@@ -25,7 +25,6 @@ import { isValidENSAddress } from 'libs/validators';
 import { getNameHash, NameState, IBaseSubdomainRequest } from 'libs/ens';
 import Contract from 'libs/contracts';
 import { Address, Wei } from 'libs/units';
-import { Web3Wallet } from 'libs/wallet/non-deterministic';
 import { getTransactionFields } from 'libs/transaction/utils/ether';
 import { Input, Spinner } from 'components/ui';
 import { ConfirmationModal } from 'components/ConfirmationModal';
@@ -215,16 +214,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
   }
 
   public componentDidMount() {
-    const { wallet } = this.props;
-    const network = (wallet as Web3Wallet).network;
-    const supportedNetwork = constants.supportedNetworks.includes(network);
-    const address = this.props.toChecksumAddress(wallet.getAddressString());
-    this.setState({
-      network,
-      supportedNetwork,
-      address
-    });
-    this.setAddressAndNetwork(supportedNetwork);
+    this.setNetworkAndAddress();
   }
 
   public componentDidUpdate(prevProps: Props) {
@@ -236,7 +226,9 @@ class ETHSimpleClass extends React.Component<Props, State> {
       networkRequestPending,
       isFullTransaction,
       validGasLimit,
-      currentTransaction
+      currentTransaction,
+      wallet,
+      networkConfig
     } = this.props;
     const {
       purchaseClicked,
@@ -246,6 +238,9 @@ class ETHSimpleClass extends React.Component<Props, State> {
       isValidDomain,
       txRepairMode
     } = this.state;
+    if (wallet !== prevProps.wallet || networkConfig !== prevProps.networkConfig) {
+      this.setNetworkAndAddress();
+    }
     if (domainRequests !== prevProps.domainRequests) {
       const req = domainRequests[domainToCheck];
       const resolveCompleteAndValid =
@@ -316,6 +311,23 @@ class ETHSimpleClass extends React.Component<Props, State> {
       }
     }
   }
+
+  private setNetworkAndAddress = () => {
+    const { wallet, networkConfig } = this.props;
+    const network = networkConfig.id;
+    const supportedNetwork = constants.supportedNetworks.includes(network);
+    const address = this.props.toChecksumAddress(wallet.getAddressString());
+    this.setState(
+      {
+        network,
+        supportedNetwork,
+        address
+      },
+      () => {
+        this.updateTxFields();
+      }
+    );
+  };
 
   private onChange = (event: React.FormEvent<HTMLInputElement>) => {
     const subdomain = event.currentTarget.value.toLowerCase().trim();
@@ -399,9 +411,8 @@ class ETHSimpleClass extends React.Component<Props, State> {
     } else if (isResolving) {
       className = 'help-block is-semivalid';
       icon = <Spinner />;
-      markup = `  Resolving ${subdomain + constants.esFullDomain}...`;
-      translate('ETHSIMPLE_STATUS_RESOLVING_SUBDOMAIN', {
-        $domain: (req.data as IBaseSubdomainRequest).name + constants.tld
+      markup = translate('ETHSIMPLE_STATUS_RESOLVING_SUBDOMAIN', {
+        $domain: domainToCheck + constants.tld
       });
     } else if (
       !purchaseClicked &&
@@ -461,20 +472,6 @@ class ETHSimpleClass extends React.Component<Props, State> {
         </span>
       </React.Fragment>
     );
-  };
-
-  private setAddressAndNetwork = (supportedNetwork: boolean) => {
-    if (!!this.props.wallet) {
-      const network = (this.props.wallet as Web3Wallet).network;
-      if (network !== this.state.network) {
-        this.setState({ network });
-      }
-      const address = this.props.toChecksumAddress(this.props.wallet.getAddressString());
-      if (address !== this.state.address && supportedNetwork) {
-        this.setState({ address });
-        this.updateTxFields();
-      }
-    }
   };
 
   private buildTxData = () => {

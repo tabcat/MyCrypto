@@ -30,7 +30,6 @@
     color: color(text-color);
     font-size: $font-size-xs;
     opacity: 0.5;
-    margin-right: .45rem;
 
     .fa {
       margin: 0 $space-xs 0 $space-sm;
@@ -128,10 +127,6 @@
       text-overflow: ellipsis;
       word-wrap: break-word;
     }
-  }
-
-  &-set-reverse-resolver {
-    margin-left: 0px !important;
   }
 
   &-balance {
