@@ -35,7 +35,6 @@ interface StateProps {
   domainRequests: AppState['ens']['domainRequests'];
   txNetworkFields: AppState['transaction']['network'];
   notifications: AppState['notifications'];
-  // serializedTransaction: AppState['transaction']['sign']['web3']['transaction'];
   isResolving: boolean | null;
   networkConfig: ReturnType<typeof configSelectors.getNetworkConfig>;
   toChecksumAddress: ReturnType<typeof configSelectors.getChecksumAddressFn>;
@@ -86,7 +85,6 @@ interface State {
   pollTimeout: boolean;
   supportedNetwork: boolean;
   showModal: boolean;
-  txRepairMode: boolean;
   domainRequest: IBaseSubdomainRequest | null;
 }
 
@@ -106,7 +104,6 @@ class ETHSimpleClass extends React.Component<Props, State> {
     pollTimeout: false,
     supportedNetwork: false,
     showModal: false,
-    txRepairMode: false,
     domainRequest: null
   };
 
@@ -124,9 +121,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
       isResolving,
       signaturePending,
       signedTx,
-      isFullTransaction,
       networkRequestPending,
-      validGasLimit,
       domainRequests,
       wallet
     } = this.props;
@@ -144,9 +139,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
       isResolving ||
       purchaseClicked ||
       subdomain.length < 1 ||
-      !isFullTransaction ||
       networkRequestPending ||
-      !validGasLimit ||
       !isAvailableDomain ||
       ownedByThisAddress;
     const description = this.generateDescription();
@@ -170,11 +163,11 @@ class ETHSimpleClass extends React.Component<Props, State> {
         <div className="ETHSimple-description">{description}</div>
         <form className="ETHSimpleInput" onSubmit={this.purchaseSubdomain}>
           <div className="input-group-wrapper">
-            <label className="input-group input-group-inline ETHSimpleInput-name">
+            <label className="input-group input-group-inline">
               <Input
                 value={subdomain}
                 isValid={validSubdomain}
-                className="border-rad-right-0"
+                className="border-rad-right-0 ETHSimple-name"
                 type="text"
                 placeholder="mydomain"
                 spellCheck={false}
@@ -182,11 +175,8 @@ class ETHSimpleClass extends React.Component<Props, State> {
                 onFocus={this.onFocus}
                 onBlur={this.onBlur}
                 disabled={isLoading}
-                style={{ marginBottom: '0.4rem' }}
               />
-              <span className="input-group-addon" style={{ marginBottom: '0.4rem' }}>
-                {constants.esFullDomain}
-              </span>
+              <span className="input-group-addon ETHSimple-name">{constants.esFullDomain}</span>
             </label>
           </div>
           <button
@@ -228,15 +218,15 @@ class ETHSimpleClass extends React.Component<Props, State> {
       validGasLimit,
       currentTransaction,
       wallet,
-      networkConfig
+      networkConfig,
+      signaturePending
     } = this.props;
     const {
       purchaseClicked,
       initialPollRequested,
       domainToCheck,
       pollTimeout,
-      isValidDomain,
-      txRepairMode
+      isValidDomain
     } = this.state;
     if (wallet !== prevProps.wallet || networkConfig !== prevProps.networkConfig) {
       this.setNetworkAndAddress();
@@ -252,23 +242,22 @@ class ETHSimpleClass extends React.Component<Props, State> {
         (req.data as IBaseSubdomainRequest).name === domainToCheck;
       if (resolveCompleteAndValid && !!req.data) {
         const domainRequest = req.data as IBaseSubdomainRequest;
-        this.setState({ domainRequest }, () => {
-          if (domainRequest.mode === NameState.Open) {
-            this.updateTxFields();
-          }
-        });
+        this.setState({ domainRequest });
       }
     }
-    if (
-      txNetworkFields !== prevProps.txNetworkFields &&
-      txRepairMode &&
-      !networkRequestPending &&
-      isFullTransaction &&
-      validGasLimit &&
-      this.checkNetworkFields() &&
-      this.checkTxFields()
-    ) {
-      this.verifyTx();
+    if (txNetworkFields !== prevProps.txNetworkFields) {
+      if (
+        purchaseClicked &&
+        !signaturePending &&
+        !networkRequestPending &&
+        isFullTransaction &&
+        validGasLimit &&
+        this.checkNetworkFields() &&
+        this.checkTxFields()
+      ) {
+        this.props.signTransactionRequested(this.props.transaction);
+        this.openModal();
+      }
     }
     if (currentTransaction !== prevProps.currentTransaction) {
       if (
@@ -317,16 +306,11 @@ class ETHSimpleClass extends React.Component<Props, State> {
     const network = networkConfig.id;
     const supportedNetwork = constants.supportedNetworks.includes(network);
     const address = this.props.toChecksumAddress(wallet.getAddressString());
-    this.setState(
-      {
-        network,
-        supportedNetwork,
-        address
-      },
-      () => {
-        this.updateTxFields();
-      }
-    );
+    this.setState({
+      network,
+      supportedNetwork,
+      address
+    });
   };
 
   private onChange = (event: React.FormEvent<HTMLInputElement>) => {
@@ -360,12 +344,9 @@ class ETHSimpleClass extends React.Component<Props, State> {
   };
 
   private onFocus = () => {
+    this.props.resetTransactionRequested();
     this.props.getNonceRequested();
-    this.updateTxFields();
-    this.setState({
-      isFocused: true,
-      txRepairMode: false
-    });
+    this.setState({ isFocused: true });
   };
 
   private onBlur = () => this.setState({ isFocused: false });
@@ -434,11 +415,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
         $domain: (req.data as IBaseSubdomainRequest).name + constants.tld
       });
       refreshIcon = (
-        <button
-          className="AccountInfo-section-refresh"
-          onClick={this.refreshDomainResolution}
-          style={{ marginLeft: 4 }}
-        >
+        <button className="ETHSimple-section-refresh" onClick={this.refreshDomainResolution}>
           <i className="fa fa-refresh" />
         </button>
       );
@@ -515,25 +492,15 @@ class ETHSimpleClass extends React.Component<Props, State> {
 
   private purchaseSubdomain = (ev: React.FormEvent<HTMLElement>) => {
     ev.preventDefault();
-    this.verifyTx();
-  };
-
-  private verifyTx = () => {
-    if (this.checkNetworkFields() && this.checkTxFields()) {
-      this.setState(
-        {
-          purchaseClicked: true,
-          txRepairMode: false,
-          initialPollRequested: false
-        },
-        () => {
-          this.props.signTransactionRequested(this.props.transaction);
-          this.openModal();
-        }
-      );
-    } else {
-      this.repairNetworkFields();
-    }
+    this.setState(
+      {
+        purchaseClicked: true,
+        initialPollRequested: false
+      },
+      () => {
+        this.updateTxFields();
+      }
+    );
   };
 
   private checkNetworkFields = () => {
@@ -559,19 +526,6 @@ class ETHSimpleClass extends React.Component<Props, State> {
     return false;
   };
 
-  private repairNetworkFields = () => {
-    const { txNetworkFields } = this.props;
-    const success = 'SUCCESS';
-    this.setState({ txRepairMode: true }, () => {
-      if (!this.checkNetworkFields() || !this.checkTxFields()) {
-        this.updateTxFields();
-      }
-      if (txNetworkFields.getNonceStatus !== success) {
-        this.props.getNonceRequested();
-      }
-    });
-  };
-
   private purchaseComplete = () => {
     const { subdomain } = this.state;
     this.props.subdomainPurchased(subdomain + constants.esFullDomain);
@@ -582,6 +536,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
       },
       () => {
         this.refreshDomainResolution();
+        this.props.resetTransactionRequested();
         this.props.getNonceRequested();
       }
     );
@@ -656,6 +611,9 @@ class ETHSimpleClass extends React.Component<Props, State> {
       showModal: false,
       purchaseClicked: !closedByUser
     });
+    if (closedByUser) {
+      this.props.resetTransactionRequested();
+    }
   };
 
   private pollForHash = () => {
@@ -686,7 +644,6 @@ function mapStateToProps(state: AppState): StateProps {
     networkConfig: configSelectors.getNetworkConfig(state),
     toChecksumAddress: configSelectors.getChecksumAddressFn(state),
     ...derivedSelectors.getTransaction(state),
-    // serializedTransaction: derivedSelectors.getSerializedTransaction(state),
     networkRequestPending: transactionNetworkSelectors.isNetworkRequestPending(state),
     validGasLimit: transactionSelectors.isValidGasLimit(state),
     currentTransaction: transactionSelectors.getCurrentTransactionStatus(state),

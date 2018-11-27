@@ -1,7 +1,12 @@
 @import 'common/sass/variables';
 @import 'common/sass/mixins';
 
-.AccountNameStatus {
+.AccountNameLabel {
+	
+	.help-block {
+		margin-bottom: 0.05rem;
+	}
+
   &-name {
     @include clearfix;
 
@@ -29,6 +34,8 @@
 
       &--small {
         font-size: 0.8rem;
+        margin-bottom: 0rem;
+        display: inline-flex;
       }
     }
 
@@ -46,6 +53,7 @@
 	  	font-size: 0.7rem;
 	  	vertical-align: top;
 		  margin-top: 0.0rem;
+		  margin-right: 0.05rem;
 	  }
 
 	  &-label {

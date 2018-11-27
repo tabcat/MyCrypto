@@ -7,6 +7,10 @@
     margin-top: 0px;
   }
 
+  &-name {
+  	margin-bottom: 0.4rem;
+  }
+
   &-logo {
     float: right;
     max-width: 130px;
@@ -24,11 +28,8 @@
   }
 
   &-description {
-    overflow-x: hidden;
+	  overflow-x: hidden;
     text-overflow: ellipsis;
-  }
-
-  &-description {
     font-weight: 300;
     font-size: 16px;
     padding: 2px 0 6px;
@@ -36,28 +37,30 @@
     line-height: 1.7;
   }
 
-  &-field-title {
-    position: relative;
-    white-space: nowrap;
+  &-section {
+    margin: $space 0;
 
-    &-help {
-      margin-top: 3px;
-      margin-left: 5px;
-      pointer-events: none;
-    }
-
-    &-text {
-      display: inline-block;
-    }
-
-    &-tooltip {
-      display: inline-block;
-      white-space: normal;
-      @include show-tooltip-on-hover;
-    }
-
-    &-wrap {
-      white-space: normal;
+    &-refresh {
+      background: transparent;
+      border: none;
+      padding: 0;
+      height: 1.4rem;
+      width: 1.2rem;
+      opacity: 0.3;
+      transition: opacity 0.3s;
+      margin-left: 0.1rem;
+      > img {
+        height: inherit;
+        width: inherit;
+        vertical-align: top;
+      }
+      &:hover {
+        opacity: 0.54;
+      }
+      &:active {
+        transition: opacity 120ms;
+        opacity: 1;
+      }
     }
   }
 }

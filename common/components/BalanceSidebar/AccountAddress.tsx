@@ -13,7 +13,7 @@ import { configSelectors } from 'features/config';
 import { ensActions } from 'features/ens';
 import { IBaseAddressRequest } from 'libs/ens';
 import { Address, Identicon, Input } from 'components/ui';
-import AccountNameStatus from './AccountNameStatus';
+import AccountNameLabel from './AccountNameLabel';
 
 interface StateProps {
   entry: ReturnType<typeof addressBookSelectors.getAccountAddressEntry>;
@@ -154,11 +154,10 @@ class AccountAddress extends React.Component<Props, State> {
   private setLabelInputRef = (node: HTMLInputElement) => (this.labelInput = node);
 
   private generateLabelContent = () => {
-    const { addressLabel, entry: { temporaryLabel, labelError } } = this.props; // , networkConfig
+    const { addressLabel, entry: { temporaryLabel, labelError } } = this.props;
     const { editingLabel, labelInputTouched } = this.state;
     const newLabelSameAsPrevious = temporaryLabel === addressLabel;
     const labelInputTouchedWithError = labelInputTouched && !newLabelSameAsPrevious && labelError;
-    // const accountNameStatus = networkConfig.isTestnet ? null : this.generateAccountNameStatus();
 
     let labelContent = null;
 
@@ -200,7 +199,7 @@ class AccountAddress extends React.Component<Props, State> {
     const { addressLabel, addressRequest } = this.state;
     return (
       <React.Fragment>
-        <AccountNameStatus
+        <AccountNameLabel
           address={address}
           addressLabel={addressLabel}
           purchasedSubdomainLabel={purchasedSubdomainLabel}

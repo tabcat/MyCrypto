@@ -28,11 +28,10 @@ import { Address, Wei } from 'libs/units';
 import { getTransactionFields } from 'libs/transaction/utils/ether';
 import { Spinner } from 'components/ui';
 import { ConfirmationModal } from 'components/ConfirmationModal';
-import './AccountNameStatus.scss';
+import './AccountNameLabel.scss';
 
 interface StateProps {
   wallet: AppState['wallet']['inst'];
-  // serializedTransaction: AppState['transaction']['sign']['web3']['transaction'];
   notifications: AppState['notifications'];
   txNetworkFields: AppState['transaction']['network'];
   addressRequests: AppState['ens']['addressRequests'];
@@ -57,6 +56,7 @@ interface DispatchProps {
   inputData: transactionFieldsActions.TInputData;
   inputGasLimit: transactionFieldsActions.TInputGasLimit;
   getNonceRequested: transactionNetworkActions.TGetNonceRequested;
+  resetTransactionRequested: transactionFieldsActions.TResetTransactionRequested;
   signTransactionRequested: transactionSignActions.TSignTransactionRequested;
   fetchTransactionData: transactionsActions.TFetchTransactionData;
 }
@@ -77,18 +77,16 @@ interface State {
   setNameButtonClicked: boolean;
   initialPollRequested: boolean;
   pollTimeout: boolean;
-  txRepairMode: boolean;
 }
 
-class AccountNameStatus extends React.Component<Props, State> {
+class AccountNameLabel extends React.Component<Props, State> {
   public state = {
     reverseRegistrarInstance: ENS.reverse,
     showModal: false,
     hover: false,
     setNameButtonClicked: false,
     initialPollRequested: false,
-    pollTimeout: false,
-    txRepairMode: false
+    pollTimeout: false
   };
 
   public render() {
@@ -97,12 +95,11 @@ class AccountNameStatus extends React.Component<Props, State> {
     const accountNameButton = this.generateAccountNameButton();
 
     return (
-      <div className="AccountNameStatus">
+      <div className="AccountNameLabel">
         <div
           className="help-block"
           onMouseEnter={this.handleHover}
           onMouseLeave={this.handleNoHover}
-          style={{ marginBottom: 2 }}
         >
           {accountNameButton}
         </div>
@@ -117,28 +114,26 @@ class AccountNameStatus extends React.Component<Props, State> {
   public componentDidUpdate(prevProps: Props) {
     const {
       txState,
-      purchasedSubdomainLabel,
       isFullTransaction,
       validGasLimit,
       networkRequestPending,
       txNetworkFields,
-      currentTransaction
+      currentTransaction,
+      signaturePending
     } = this.props;
-    const { setNameButtonClicked, initialPollRequested, pollTimeout, txRepairMode } = this.state; // , claimMode
-    if (purchasedSubdomainLabel !== prevProps.purchasedSubdomainLabel) {
-      if (!!purchasedSubdomainLabel) {
-        this.updateTxFields();
-      }
-    }
+    const { setNameButtonClicked, initialPollRequested, pollTimeout } = this.state;
     if (txNetworkFields !== prevProps.txNetworkFields) {
       if (
-        txRepairMode &&
+        setNameButtonClicked &&
+        !signaturePending &&
         !networkRequestPending &&
         isFullTransaction &&
         validGasLimit &&
-        this.checkNetworkFields()
+        this.checkNetworkFields() &&
+        this.checkTxFields()
       ) {
-        this.verifyTx();
+        this.props.signTransactionRequested(this.props.transaction);
+        this.openModal();
       }
     }
     if (currentTransaction !== prevProps.currentTransaction) {
@@ -192,9 +187,9 @@ class AccountNameStatus extends React.Component<Props, State> {
     const showName = !!addressRequest && addressRequest.name.length > 0;
     const iconBaseName = 'help-block is-valid status-icon fa fa-';
     const spanBaseName = 'help-block status-label is-';
-    const outerDivClassName = 'AccountNameStatus-name-wrapper';
-    const divClassName = 'help-block AccountNameStatus-name-addr--small';
-    const labelClassName = 'AccountNameStatus-name-label';
+    const outerDivClassName = 'AccountNameLabel-name-wrapper';
+    const divClassName = 'help-block AccountNameLabel-name-addr--small';
+    const labelClassName = 'AccountNameLabel-name-label';
     const labelValue = showName
       ? (addressRequest as IBaseAddressRequest).name
       : purchasedSubdomainLabel;
@@ -219,9 +214,9 @@ class AccountNameStatus extends React.Component<Props, State> {
     return (
       <React.Fragment>
         <div className={outerDivClassName}>
-          <div className={divClassName} style={{ marginBottom: 0, display: 'inline-flex' }}>
+          <div className={divClassName}>
             <label className={labelClassName}>{labelValue}</label>
-            <i className={iconClassName} style={{ marginRight: 1 }} />
+            <i className={iconClassName} />
             <span role={spanRole} onClick={clickAction} className={spanClassName}>
               {spinner}
               {title}
@@ -274,25 +269,15 @@ class AccountNameStatus extends React.Component<Props, State> {
 
   private setName = (ev: React.FormEvent<HTMLElement>) => {
     ev.preventDefault();
-    this.verifyTx();
-  };
-
-  private verifyTx = () => {
-    if (this.checkNetworkFields() && this.checkTxFields()) {
-      this.setState(
-        {
-          setNameButtonClicked: true,
-          txRepairMode: false,
-          initialPollRequested: false
-        },
-        () => {
-          this.props.signTransactionRequested(this.props.transaction);
-          this.openModal();
-        }
-      );
-    } else {
-      this.repairNetworkFields();
-    }
+    this.setState(
+      {
+        setNameButtonClicked: true,
+        initialPollRequested: false
+      },
+      () => {
+        this.updateTxFields();
+      }
+    );
   };
 
   private checkNetworkFields = () => {
@@ -315,27 +300,23 @@ class AccountNameStatus extends React.Component<Props, State> {
     return false;
   };
 
-  private repairNetworkFields = () => {
-    const { txNetworkFields } = this.props;
-    const success = 'SUCCESS';
-    this.setState({ txRepairMode: true }, () => {
-      if (!this.checkNetworkFields() || !this.checkTxFields()) {
-        this.updateTxFields();
-      }
-      if (txNetworkFields.getNonceStatus !== success) {
+  private setNameComplete = () => {
+    this.handleNotifications();
+    this.setState(
+      {
+        setNameButtonClicked: false,
+        initialPollRequested: false
+      },
+      () => {
+        this.refreshAddressResolution();
+        this.props.resetTransactionRequested();
         this.props.getNonceRequested();
       }
-    });
+    );
   };
 
-  private setNameComplete = () => {
+  private refreshAddressResolution = () => {
     const { address } = this.props;
-    this.props.getNonceRequested();
-    this.handleNotifications();
-    this.setState({
-      setNameButtonClicked: false,
-      initialPollRequested: false
-    });
     if (!this.props.networkConfig.isTestnet) {
       this.props.reverseResolveAddressRequested(address, true);
     }
@@ -428,7 +409,6 @@ function mapStateToProps(state: AppState): StateProps {
     txNetworkFields: state.transaction.network,
     notifications: state.notifications,
     addressRequests: state.ens.addressRequests,
-    // serializedTransaction: derivedSelectors.getSerializedTransaction(state),
     txState: state.transactions.txData,
     networkConfig: configSelectors.getNetworkConfig(state),
     ...derivedSelectors.getTransaction(state),
@@ -451,8 +431,9 @@ const mapDispatchToProps: DispatchProps = {
   inputData: transactionFieldsActions.inputData,
   inputGasLimit: transactionFieldsActions.inputGasLimit,
   getNonceRequested: transactionNetworkActions.getNonceRequested,
+  resetTransactionRequested: transactionFieldsActions.resetTransactionRequested,
   signTransactionRequested: transactionSignActions.signTransactionRequested,
   fetchTransactionData: transactionsActions.fetchTransactionData
 };
 
-export default connect(mapStateToProps, mapDispatchToProps)(AccountNameStatus);
+export default connect(mapStateToProps, mapDispatchToProps)(AccountNameLabel);
