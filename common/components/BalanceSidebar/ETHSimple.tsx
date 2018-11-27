@@ -35,7 +35,7 @@ interface StateProps {
   domainRequests: AppState['ens']['domainRequests'];
   txNetworkFields: AppState['transaction']['network'];
   notifications: AppState['notifications'];
-  serializedTransaction: AppState['transaction']['sign']['web3']['transaction'];
+  // serializedTransaction: AppState['transaction']['sign']['web3']['transaction'];
   isResolving: boolean | null;
   networkConfig: ReturnType<typeof configSelectors.getNetworkConfig>;
   toChecksumAddress: ReturnType<typeof configSelectors.getChecksumAddressFn>;
@@ -334,7 +334,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
     const purchaseClicked = false;
     const subdomainEntered = subdomain.length > 0;
     const isValidDomain = subdomainEntered
-      ? isValidENSAddress(subdomain + constants.esDomain + constants.tld)
+      ? isValidENSAddress(subdomain + constants.esFullDomain)
       : false;
     const domainToCheck = isValidDomain ? subdomain + constants.esDomain : this.state.domainToCheck;
     const subdomainToDisplay = subdomainEntered ? domainToCheck + constants.tld : '';
@@ -479,7 +479,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
     const inputs = {
       _node: constants.esFullDomainNamehash,
       _label: bufferToHex(sha3(subdomain)),
-      _newNode: getNameHash(subdomain + constants.esDomain + constants.tld),
+      _newNode: getNameHash(subdomain + constants.esFullDomain),
       _resolver: constants.publicResolverAddr,
       _owner: address,
       _resolvedAddress: address,
@@ -686,7 +686,7 @@ function mapStateToProps(state: AppState): StateProps {
     networkConfig: configSelectors.getNetworkConfig(state),
     toChecksumAddress: configSelectors.getChecksumAddressFn(state),
     ...derivedSelectors.getTransaction(state),
-    serializedTransaction: derivedSelectors.getSerializedTransaction(state),
+    // serializedTransaction: derivedSelectors.getSerializedTransaction(state),
     networkRequestPending: transactionNetworkSelectors.isNetworkRequestPending(state),
     validGasLimit: transactionSelectors.isValidGasLimit(state),
     currentTransaction: transactionSelectors.getCurrentTransactionStatus(state),

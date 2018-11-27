@@ -32,7 +32,7 @@ import './AccountNameStatus.scss';
 
 interface StateProps {
   wallet: AppState['wallet']['inst'];
-  serializedTransaction: AppState['transaction']['sign']['web3']['transaction'];
+  // serializedTransaction: AppState['transaction']['sign']['web3']['transaction'];
   notifications: AppState['notifications'];
   txNetworkFields: AppState['transaction']['network'];
   addressRequests: AppState['ens']['addressRequests'];
@@ -214,6 +214,7 @@ class AccountNameStatus extends React.Component<Props, State> {
             })
           : translate('ENS_REVERSE_RESOLVE_NAME_EMPTY');
     const spinner = setNameButtonClicked ? <Spinner /> : null;
+    const clickAction = showName ? undefined : this.setName;
 
     return (
       <React.Fragment>
@@ -221,7 +222,7 @@ class AccountNameStatus extends React.Component<Props, State> {
           <div className={divClassName} style={{ marginBottom: 0, display: 'inline-flex' }}>
             <label className={labelClassName}>{labelValue}</label>
             <i className={iconClassName} style={{ marginRight: 1 }} />
-            <span role={spanRole} onClick={this.setName} className={spanClassName}>
+            <span role={spanRole} onClick={clickAction} className={spanClassName}>
               {spinner}
               {title}
             </span>
@@ -427,7 +428,7 @@ function mapStateToProps(state: AppState): StateProps {
     txNetworkFields: state.transaction.network,
     notifications: state.notifications,
     addressRequests: state.ens.addressRequests,
-    serializedTransaction: derivedSelectors.getSerializedTransaction(state),
+    // serializedTransaction: derivedSelectors.getSerializedTransaction(state),
     txState: state.transactions.txData,
     networkConfig: configSelectors.getNetworkConfig(state),
     ...derivedSelectors.getTransaction(state),
