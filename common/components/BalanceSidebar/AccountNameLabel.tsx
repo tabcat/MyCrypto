@@ -185,7 +185,7 @@ class AccountNameLabel extends React.Component<Props, State> {
       return null;
     }
     const showName = !!addressRequest && addressRequest.name.length > 0;
-    const iconBaseName = 'help-block is-valid status-icon fa fa-';
+    const iconBaseName = 'help-block status-icon fa fa-';
     const spanBaseName = 'help-block status-label is-';
     const outerDivClassName = 'AccountNameLabel-name-wrapper';
     const divClassName = 'help-block AccountNameLabel-name-addr--small';
@@ -194,7 +194,10 @@ class AccountNameLabel extends React.Component<Props, State> {
       ? (addressRequest as IBaseAddressRequest).name
       : purchasedSubdomainLabel;
     const iconClassName =
-      iconBaseName + (showName ? 'check' : setNameButtonClicked ? '' : hover ? 'check' : 'remove');
+      iconBaseName +
+      (showName
+        ? 'check is-valid'
+        : setNameButtonClicked ? '' : hover ? 'check is-valid' : 'remove is-invalid');
     const spanRole = showName ? '' : 'button';
     const spanClassName =
       spanBaseName +
@@ -269,15 +272,19 @@ class AccountNameLabel extends React.Component<Props, State> {
 
   private setName = (ev: React.FormEvent<HTMLElement>) => {
     ev.preventDefault();
-    this.setState(
-      {
-        setNameButtonClicked: true,
-        initialPollRequested: false
-      },
-      () => {
-        this.updateTxFields();
-      }
-    );
+    if (this.state.setNameButtonClicked) {
+      this.setState({ setNameButtonClicked: false });
+    } else {
+      this.setState(
+        {
+          setNameButtonClicked: true,
+          initialPollRequested: false
+        },
+        () => {
+          this.updateTxFields();
+        }
+      );
+    }
   };
 
   private checkNetworkFields = () => {
