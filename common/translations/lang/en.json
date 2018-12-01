@@ -527,6 +527,7 @@
     "ETHSIMPLE_STATUS_RESOLVING_SUBDOMAIN": "  Resolving $domain...",
     "ETHSIMPLE_STATUS_SUBDOMAIN_UNAVAILABLE": " **$domain** is unavailable",
     "ETHSIMPLE_STATUS_SUBDOMAIN_AVAILABLE": " **$domain** is available",
+    "ETHSIMPLE_STATUS_SUBDOMAIN_AVAILABLE_UNABLE": " **$domain** is available; insufficient ether balance.",
     "ETHSIMPLE_STATUS_WAIT_FOR_USER_CONFIRM": "  Waiting for transaction to be confirmed...",
     "ETHSIMPLE_STATUS_WAIT_FOR_MINE": "  Waiting for transaction to be mined...",
     "ETHSIMPLE_STATUS_SUBDOMAIN_OWNED_BY_USER": " You own **$domain**",
