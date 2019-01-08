@@ -7,11 +7,14 @@ import { translate, translateRaw } from 'translations';
 import { TransactionState, TransactionReceipt } from 'types/transactions';
 import { AppState } from 'features/reducers';
 import { ensActions, ensSelectors } from 'features/ens';
+import { gasSelectors, gasTypes } from 'features/gas';
 import { configSelectors } from 'features/config';
 import { notificationsActions } from 'features/notifications';
 import * as derivedSelectors from 'features/selectors';
 import {
+  transactionFieldsSelectors,
   transactionFieldsActions,
+  transactionFieldsTypes,
   transactionNetworkActions,
   transactionSelectors,
   transactionSignSelectors,
@@ -20,11 +23,12 @@ import {
   transactionSignActions
 } from 'features/transaction';
 import { transactionsActions } from 'features/transactions';
+import { walletSelectors } from 'features/wallet';
 import { IWallet } from 'libs/wallet';
 import { isValidENSAddress } from 'libs/validators';
 import { getNameHash, NameState, IBaseSubdomainRequest } from 'libs/ens';
 import Contract from 'libs/contracts';
-import { Address, Wei } from 'libs/units';
+import { Address, Wei, toWei, handleValues } from 'libs/units';
 import { getTransactionFields } from 'libs/transaction/utils/ether';
 import { Input, Spinner } from 'components/ui';
 import { ConfirmationModal } from 'components/ConfirmationModal';
@@ -47,6 +51,9 @@ interface StateProps {
   networkRequestPending: boolean;
   currentTransaction: false | transactionBroadcastTypes.ITransactionStatus | null;
   transaction: EthTx;
+  walletBalance: Wei | null;
+  getEstimates: gasTypes.estimates;
+  getGasPriceField: transactionFieldsTypes.TransactionFieldsState.gasPrice | null;
 }
 
 interface DispatchProps {
@@ -57,6 +64,7 @@ interface DispatchProps {
   setValueField: transactionFieldsActions.TSetValueField;
   inputData: transactionFieldsActions.TInputData;
   inputGasLimit: transactionFieldsActions.TInputGasLimit;
+  setGasPriceField: transactionFieldsActions.setGasPriceField;
   getNonceRequested: transactionNetworkActions.TGetNonceRequested;
   resetTransactionRequested: transactionFieldsActions.TResetTransactionRequested;
   signTransactionRequested: transactionSignActions.TSignTransactionRequested;
@@ -103,6 +111,14 @@ class ETHSimpleClass extends React.Component<Props, State> {
     domainRequest: null
   };
 
+  private estimatedTxCost = (): Wei => {
+    const { subdomainPriceWei, purchaseSubdomainGasLimit } = constants;
+    const { getGasPriceField } = this.props;
+    return Wei(subdomainPriceWei).add(
+      getGasPriceField.value.mul(handleValues(purchaseSubdomainGasLimit))
+    );
+  };
+
   public render() {
     const {
       isLoading,
@@ -119,7 +135,8 @@ class ETHSimpleClass extends React.Component<Props, State> {
       networkRequestPending,
       domainRequests,
       wallet,
-      networkConfig
+      networkConfig,
+      walletBalance
     } = this.props;
     const validSubdomain = !!subdomain && isValidDomain;
     const req = domainRequests[domainToCheck];
@@ -137,7 +154,8 @@ class ETHSimpleClass extends React.Component<Props, State> {
       subdomain.length < 1 ||
       networkRequestPending ||
       !isAvailableDomain ||
-      ownedByThisAddress;
+      ownedByThisAddress ||
+      this.estimatedTxCost().gt(walletBalance);
     const supportedNetwork = constants.supportedNetworks.includes(networkConfig.id);
     const description = this.generateDescription();
     const statusLabel = this.generateStatusLabel();
@@ -257,6 +275,11 @@ class ETHSimpleClass extends React.Component<Props, State> {
     this.setState({ address });
   };
 
+  private setGas = () => {
+    const fastGasPrice = this.props.getEstimates.fast.toString();
+    this.props.setGasPriceField({ raw: fastGasPrice, value: toWei(fastGasPrice, 9) });
+  };
+
   private onChange = (event: React.FormEvent<HTMLInputElement>) => {
     const subdomain = event.currentTarget.value.toLowerCase().trim();
     const purchaseClicked = false;
@@ -282,6 +305,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
         }
         if (!subdomainEntered) {
           this.props.resetTransactionRequested();
+          this.setGas();
         }
       }
     );
@@ -290,6 +314,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
   private onFocus = () => {
     this.props.resetTransactionRequested();
     this.props.getNonceRequested();
+    this.setGas();
     this.setState({ isFocused: true });
   };
 
@@ -318,7 +343,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
 
   private generateStatusLabel = () => {
     const { subdomain, isValidDomain, purchaseClicked, domainToCheck } = this.state;
-    const { isResolving, wallet, domainRequests } = this.props;
+    const { isResolving, wallet, domainRequests, walletBalance } = this.props;
     let markup = null;
     let icon = null;
     let className = '';
@@ -365,6 +390,14 @@ class ETHSimpleClass extends React.Component<Props, State> {
           <i className="fa fa-refresh" />
         </button>
       );
+      if (this.estimatedTxCost().gt(walletBalance)) {
+        className = 'help-block is-semivalid';
+        icon = null;
+        markup = translate('ETHSIMPLE_STATUS_SUBDOMAIN_AVAILABLE_UNABLE', {
+          $domain: (req.data as IBaseSubdomainRequest).name + constants.tld
+        });
+        refreshIcon = null;
+      }
     } else if (!!subdomain && purchaseClicked && !this.props.transactionBroadcasted) {
       className = 'help-block is-semivalid';
       icon = <Spinner />;
@@ -613,6 +646,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
         this.refreshDomainResolution();
         this.props.resetTransactionRequested();
         this.props.getNonceRequested();
+        this.setGas();
       }
     );
   };
@@ -722,7 +756,10 @@ function mapStateToProps(state: AppState): StateProps {
     transactionBroadcasted: transactionSelectors.currentTransactionBroadcasted(state),
     signaturePending: derivedSelectors.signaturePending(state).isSignaturePending,
     signedTx:
-      !!transactionSignSelectors.getSignedTx(state) || !!transactionSignSelectors.getWeb3Tx(state)
+      !!transactionSignSelectors.getSignedTx(state) || !!transactionSignSelectors.getWeb3Tx(state),
+    walletBalance: walletSelectors.getEtherBalance(state),
+    getEstimates: gasSelectors.getEstimates(state),
+    getGasPriceField: transactionFieldsSelectors.getGasPrice(state)
   };
 }
 
@@ -734,6 +771,7 @@ const mapDispatchToProps: DispatchProps = {
   setValueField: transactionFieldsActions.setValueField,
   inputData: transactionFieldsActions.inputData,
   inputGasLimit: transactionFieldsActions.inputGasLimit,
+  setGasPriceField: transactionFieldsActions.setGasPriceField,
   getNonceRequested: transactionNetworkActions.getNonceRequested,
   resetTransactionRequested: transactionFieldsActions.resetTransactionRequested,
   signTransactionRequested: transactionSignActions.signTransactionRequested,
