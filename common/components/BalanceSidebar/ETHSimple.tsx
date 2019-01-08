@@ -181,7 +181,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
             className="ETHSimple-button btn btn-primary btn-block"
             onClick={this.purchaseSubdomain}
           >
-            {translate('ETHSIMPLE_ACTION')}
+            {translate('ETHSIMPLE_ACTION', { $domainEthPrice: constants.subdomainPriceETH })}
           </button>
         </form>
         {statusLabel}

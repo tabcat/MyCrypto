@@ -523,7 +523,7 @@
     "ETHSIMPLE_DESC": "Receive ETH at **`$subdomain`** instead of `$addr`",
     "ETHSIMPLE_DESC_DEFAULT_SUBDOMAIN": "mydomain.ethsimple.eth",
     "ETHSIMPLE_DESC_DEFAULT_NO_ADDR": "0x314159265dD8dbb310642f98f50C066173C1259b",
-    "ETHSIMPLE_ACTION": "Purchase Domain",
+    "ETHSIMPLE_ACTION": "Purchase for $domainEthPrice ETH",
     "ETHSIMPLE_STATUS_RESOLVING_SUBDOMAIN": "  Resolving $domain...",
     "ETHSIMPLE_STATUS_SUBDOMAIN_UNAVAILABLE": " **$domain** is unavailable",
     "ETHSIMPLE_STATUS_SUBDOMAIN_AVAILABLE": " **$domain** is available",
