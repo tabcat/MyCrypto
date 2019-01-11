@@ -338,9 +338,9 @@ class ETHSimpleClass extends React.Component<Props, State> {
     const checkIcon = <i className="fa fa-check" />;
     const xIcon = <i className="fa fa-remove" />;
     const refreshIcon = <i className="fa fa-refresh" />;
-    const validClass = 'help-block is-valid';
-    const warningClass = 'help-block is-semivalid';
-    const invalidClass = 'help-block is-invalid';
+    const validClass = 'ETHSimple-status help-block is-valid';
+    const warningClass = 'ETHSimple-status help-block is-semivalid';
+    const invalidClass = 'ETHSimple-status help-block is-invalid';
     const refreshButton = (
       <button className="ETHSimple-section-refresh" onClick={this.refreshDomainResolution}>
         {refreshIcon}
@@ -374,10 +374,11 @@ class ETHSimpleClass extends React.Component<Props, State> {
             label = translate('ETHSIMPLE_STATUS_SUBDOMAIN_AVAILABLE', domainName);
           }
         } else {
-          className = validClass;
           if (ownedByThisAddress) {
+            className = validClass;
             label = translate('ETHSIMPLE_STATUS_SUBDOMAIN_OWNED_BY_USER', domainName);
           } else {
+            className = invalidClass;
             icon = xIcon;
             label = translate('ETHSIMPLE_STATUS_SUBDOMAIN_UNAVAILABLE', domainName);
           }
@@ -543,7 +544,6 @@ class ETHSimpleClass extends React.Component<Props, State> {
     const txAddress = this.getTxAddress();
     const txData = this.getTxData();
     const txValue = this.getTxValue();
-    console.log('txFields', txFields);
     const success = 'SUCCESS';
     if (
       this.props.toChecksumAddress(txFields.to) === txAddress &&
