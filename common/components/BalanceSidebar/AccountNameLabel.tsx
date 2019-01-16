@@ -1,20 +1,22 @@
 import React from 'react';
 import { connect } from 'react-redux';
-import { bufferToHex } from 'ethereumjs-util';
+import { bufferToHex, unpad, addHexPrefix } from 'ethereumjs-util';
 import EthTx from 'ethereumjs-tx';
+import BN from 'bn.js';
 
 import { translate, translateRaw } from 'translations';
 import { TransactionState, TransactionReceipt } from 'types/transactions';
 import * as derivedSelectors from 'features/selectors';
 import { AppState } from 'features/reducers';
+import { gasSelectors } from 'features/gas';
+import { configMetaActions } from 'features/config';
 import {
   transactionFieldsActions,
   transactionNetworkActions,
   transactionSignActions,
   transactionSelectors,
   transactionBroadcastTypes,
-  transactionSignSelectors,
-  transactionNetworkSelectors
+  transactionSignSelectors
 } from 'features/transaction';
 import { transactionsActions } from 'features/transactions';
 import { ensActions } from 'features/ens';
@@ -23,7 +25,7 @@ import Contract from 'libs/contracts';
 import ENS from 'libs/ens/contracts';
 import networkConfigs from 'libs/ens/networkConfigs';
 import { IBaseAddressRequest } from 'libs/ens';
-import { Address, Wei } from 'libs/units';
+import { Address, Wei, gasPriceToBase } from 'libs/units';
 import { getTransactionFields } from 'libs/transaction/utils/ether';
 import { Spinner } from 'components/ui';
 import { ConfirmationModal } from 'components/ConfirmationModal';
@@ -32,8 +34,6 @@ import './AccountNameLabel.scss';
 interface StateProps {
   notifications: AppState['notifications'];
   txNetworkState: AppState['transaction']['network'];
-  validGasLimit: boolean;
-  networkRequestPending: boolean;
   isFullTransaction: boolean;
   txState: { [txHash: string]: TransactionState };
   currentTransaction: false | transactionBroadcastTypes.ITransactionStatus | null;
@@ -41,6 +41,8 @@ interface StateProps {
   transactionBroadcasted: boolean | null;
   signaturePending: boolean;
   signedTx: boolean;
+  gasEstimates: AppState['gas']['estimates'];
+  autoGasLimitEstimationStatus: AppState['config']['meta']['autoGasLimit'];
 }
 
 interface DispatchProps {
@@ -51,10 +53,12 @@ interface DispatchProps {
   setValueField: transactionFieldsActions.TSetValueField;
   inputData: transactionFieldsActions.TInputData;
   inputGasLimit: transactionFieldsActions.TInputGasLimit;
+  inputGasPrice: transactionFieldsActions.TInputGasPrice;
   getNonceRequested: transactionNetworkActions.TGetNonceRequested;
   resetTransactionRequested: transactionFieldsActions.TResetTransactionRequested;
   signTransactionRequested: transactionSignActions.TSignTransactionRequested;
   fetchTransactionData: transactionsActions.TFetchTransactionData;
+  toggleAutoGasLimit: configMetaActions.TToggleAutoGasLimit;
 }
 
 interface OwnProps {
@@ -73,6 +77,7 @@ interface State {
   setNameButtonClicked: boolean;
   initialPollRequested: boolean;
   pollTimeout: boolean;
+  successStatus: string;
 }
 
 class AccountNameLabel extends React.Component<Props, State> {
@@ -82,7 +87,8 @@ class AccountNameLabel extends React.Component<Props, State> {
     hover: false,
     setNameButtonClicked: false,
     initialPollRequested: false,
-    pollTimeout: false
+    pollTimeout: false,
+    successStatus: 'SUCCESS'
   };
 
   public componentDidUpdate(prevProps: Props) {
@@ -90,12 +96,8 @@ class AccountNameLabel extends React.Component<Props, State> {
     const { setNameButtonClicked, pollTimeout } = this.state;
     if (setNameButtonClicked) {
       if (txNetworkState !== prevProps.txNetworkState) {
-        if (this.signTxIntended()) {
-          if (this.txFieldsValid()) {
-            setTimeout(this.signTx, 500);
-          } else {
-            this.setTxFields();
-          }
+        if (this.signTxIntended() && this.txFieldsValid()) {
+          this.signTx();
         }
       }
       if (currentTransaction !== prevProps.currentTransaction) {
@@ -220,7 +222,11 @@ class AccountNameLabel extends React.Component<Props, State> {
           initialPollRequested: false
         },
         () => {
-          this.setTxFields();
+          if (this.txFieldsValid() && this.props.signedTx) {
+            this.openModal();
+          } else {
+            this.setTxFields();
+          }
         }
       );
     }
@@ -240,14 +246,25 @@ class AccountNameLabel extends React.Component<Props, State> {
     return bufferToHex(Wei('0'));
   };
 
+  private getTxGasPrice = (): string => {
+    const { gasEstimates } = this.props;
+    const gasPrice = !!gasEstimates ? gasEstimates.fast.toString() : '20';
+    return gasPrice;
+  };
+
+  private getTxGasLimit = (): string => {
+    return bufferToHex(new BN('105875'));
+  };
+
   private setTxFields = () => {
+    const { successStatus } = this.state;
     const { txNetworkState, transaction } = this.props;
     const txFields = getTransactionFields(transaction);
     const txAddress = this.getTxAddress();
     const txData = this.getTxData();
     const txValue = this.getTxValue();
-    const txGasLimit = '46818';
-    const success = 'SUCCESS';
+    const txGasPrice = this.getTxGasPrice();
+    const txGasLimit = this.getTxGasLimit();
     if (txFields.to !== txAddress) {
       this.props.setToField({
         raw: txAddress,
@@ -263,36 +280,43 @@ class AccountNameLabel extends React.Component<Props, State> {
         value: Wei(txValue)
       });
     }
-    if (txNetworkState.gasEstimationStatus !== success) {
+    if (txFields.gasPrice !== txGasPrice) {
+      this.props.inputGasPrice(txGasPrice);
+    }
+    if (txFields.gasLimit !== txGasLimit) {
       this.props.inputGasLimit(txGasLimit);
     }
-    if (txNetworkState.getNonceStatus !== success) {
+    if (txNetworkState.getNonceStatus !== successStatus) {
       this.props.getNonceRequested();
     }
   };
 
   private signTxIntended = (): boolean => {
-    const { signaturePending, networkRequestPending } = this.props;
-    if (this.state.setNameButtonClicked && !signaturePending && !networkRequestPending) {
+    const { signaturePending, signedTx } = this.props;
+    if (this.state.setNameButtonClicked && !signaturePending && !signedTx) {
       return true;
     }
     return false;
   };
 
   private txFieldsValid = (): boolean => {
-    const { isFullTransaction, validGasLimit, transaction, txNetworkState } = this.props;
+    const { successStatus } = this.state;
+    const { isFullTransaction, transaction, txNetworkState } = this.props;
     const txFields = getTransactionFields(transaction);
     const txAddress = this.getTxAddress();
     const txData = this.getTxData();
     const txValue = this.getTxValue();
-    const success = 'SUCCESS';
+    const txGasPrice = this.cleanHexString(
+      bufferToHex(gasPriceToBase(Number(this.getTxGasPrice())))
+    );
+    const txGasLimit = this.cleanHexString(this.getTxGasLimit());
     if (
       txFields.to === txAddress &&
       txFields.data === txData &&
       (txFields.value === txValue || txFields.value === txValue.substring(0, txValue.length - 1)) &&
-      txNetworkState.gasEstimationStatus === success &&
-      validGasLimit &&
-      txNetworkState.getNonceStatus === success &&
+      txFields.gasPrice === txGasPrice &&
+      txFields.gasLimit === txGasLimit &&
+      txNetworkState.getNonceStatus === successStatus &&
       isFullTransaction
     ) {
       return true;
@@ -300,11 +324,13 @@ class AccountNameLabel extends React.Component<Props, State> {
     return false;
   };
 
+  private cleanHexString = (input: string): string => {
+    return addHexPrefix(unpad(input));
+  };
+
   private signTx = () => {
-    if (this.txFieldsValid()) {
-      this.props.signTransactionRequested(this.props.transaction);
-      this.openModal();
-    }
+    this.props.signTransactionRequested(this.props.transaction);
+    this.openModal();
   };
 
   private txBroadcastSuccessful = (): boolean => {
@@ -365,7 +391,7 @@ class AccountNameLabel extends React.Component<Props, State> {
       () => {
         this.props.resetTransactionRequested();
         this.props.getNonceRequested();
-        setTimeout(this.refreshAddressResolution, 2500);
+        setTimeout(this.refreshAddressResolution, 3000);
       }
     );
   };
@@ -425,10 +451,17 @@ class AccountNameLabel extends React.Component<Props, State> {
   private cancelModal = () => this.closeModal(true);
 
   private closeModal = (closedByUser: boolean) => {
-    this.setState({
-      showModal: false,
-      setNameButtonClicked: !closedByUser
-    });
+    this.setState(
+      {
+        showModal: false,
+        setNameButtonClicked: !closedByUser
+      },
+      () => {
+        if (!this.props.autoGasLimitEstimationStatus) {
+          this.props.toggleAutoGasLimit();
+        }
+      }
+    );
   };
 
   private pollForTxHash = () => setTimeout(this.getTxStatus, 10000);
@@ -453,13 +486,13 @@ function mapStateToProps(state: AppState): StateProps {
     notifications: state.notifications,
     txState: state.transactions.txData,
     ...derivedSelectors.getTransaction(state),
-    networkRequestPending: transactionNetworkSelectors.isNetworkRequestPending(state),
-    validGasLimit: transactionSelectors.isValidGasLimit(state),
     currentTransaction: transactionSelectors.getCurrentTransactionStatus(state),
     transactionBroadcasted: transactionSelectors.currentTransactionBroadcasted(state),
     signaturePending: derivedSelectors.signaturePending(state).isSignaturePending,
     signedTx:
-      !!transactionSignSelectors.getSignedTx(state) || !!transactionSignSelectors.getWeb3Tx(state)
+      !!transactionSignSelectors.getSignedTx(state) || !!transactionSignSelectors.getWeb3Tx(state),
+    gasEstimates: gasSelectors.getEstimates(state),
+    autoGasLimitEstimationStatus: state.config.meta.autoGasLimit
   };
 }
 
@@ -471,10 +504,12 @@ const mapDispatchToProps: DispatchProps = {
   setValueField: transactionFieldsActions.setValueField,
   inputData: transactionFieldsActions.inputData,
   inputGasLimit: transactionFieldsActions.inputGasLimit,
+  inputGasPrice: transactionFieldsActions.inputGasPrice,
   getNonceRequested: transactionNetworkActions.getNonceRequested,
   resetTransactionRequested: transactionFieldsActions.resetTransactionRequested,
   signTransactionRequested: transactionSignActions.signTransactionRequested,
-  fetchTransactionData: transactionsActions.fetchTransactionData
+  fetchTransactionData: transactionsActions.fetchTransactionData,
+  toggleAutoGasLimit: configMetaActions.toggleAutoGasLimit
 };
 
 export default connect(mapStateToProps, mapDispatchToProps)(AccountNameLabel);

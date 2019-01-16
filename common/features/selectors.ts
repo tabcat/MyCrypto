@@ -576,13 +576,12 @@ export const nonStandardTransaction = (state: AppState): boolean => {
   const etherTransaction = isEtherTransaction(state);
   const { isFullTransaction } = getTransaction(state);
   const dataExists = transactionSelectors.getDataExists(state);
-  const toChecksumAddress = configSelectors.getChecksumAddressFn(state);
   const { isTestnet } = configSelectors.getNetworkConfig(state);
   const subdomainRegistrationAddr = require('../components/BalanceSidebar/ETHSimpleConstants.json')
     .subdomainRegistrarAddr;
   const notRegisteringSubdomain = isTestnet
-    ? getCurrentTo(state).raw !== toChecksumAddress(subdomainRegistrationAddr.ropsten)
-    : getCurrentTo(state).raw !== toChecksumAddress(subdomainRegistrationAddr.mainnet);
+    ? getCurrentTo(state).raw !== subdomainRegistrationAddr.ropsten
+    : getCurrentTo(state).raw !== subdomainRegistrationAddr.mainnet;
   return isFullTransaction && dataExists && etherTransaction && notRegisteringSubdomain;
 };
 

@@ -1,14 +1,15 @@
 import React from 'react';
 import { connect } from 'react-redux';
-import { sha3, bufferToHex } from 'ethereumjs-util';
+import { sha3, bufferToHex, unpad, addHexPrefix } from 'ethereumjs-util';
 import EthTx from 'ethereumjs-tx';
+import BN from 'bn.js';
 
 import { translate, translateRaw } from 'translations';
 import { TransactionState, TransactionReceipt } from 'types/transactions';
 import { AppState } from 'features/reducers';
 import { ensActions, ensSelectors } from 'features/ens';
 import { gasSelectors } from 'features/gas';
-import { configSelectors } from 'features/config';
+import { configSelectors, configMetaActions } from 'features/config';
 import { notificationsActions } from 'features/notifications';
 import * as derivedSelectors from 'features/selectors';
 import {
@@ -18,7 +19,6 @@ import {
   transactionSelectors,
   transactionSignSelectors,
   transactionBroadcastTypes,
-  transactionNetworkSelectors,
   transactionSignActions
 } from 'features/transaction';
 import { transactionsActions } from 'features/transactions';
@@ -27,7 +27,7 @@ import { IWallet } from 'libs/wallet';
 import { isValidENSAddress } from 'libs/validators';
 import { normalise, getNameHash, NameState, IBaseSubdomainRequest } from 'libs/ens';
 import Contract from 'libs/contracts';
-import { Address, Wei, toWei, handleValues } from 'libs/units';
+import { Address, Wei, handleValues, gasPriceToBase } from 'libs/units';
 import { getTransactionFields } from 'libs/transaction/utils/ether';
 import { Input, Spinner } from 'components/ui';
 import { ConfirmationModal } from 'components/ConfirmationModal';
@@ -46,13 +46,12 @@ interface StateProps {
   signaturePending: boolean;
   signedTx: boolean;
   isFullTransaction: boolean;
-  validGasLimit: boolean;
-  networkRequestPending: boolean;
   currentTransaction: false | transactionBroadcastTypes.ITransactionStatus | null;
   transaction: EthTx;
   etherBalance: Wei | null;
   gasEstimates: AppState['gas']['estimates'];
   gasPrice: AppState['transaction']['fields']['gasPrice'];
+  autoGasLimitEstimationStatus: AppState['config']['meta']['autoGasLimit'];
 }
 
 interface DispatchProps {
@@ -63,12 +62,13 @@ interface DispatchProps {
   setValueField: transactionFieldsActions.TSetValueField;
   inputData: transactionFieldsActions.TInputData;
   inputGasLimit: transactionFieldsActions.TInputGasLimit;
-  setGasPriceField: transactionFieldsActions.TSetGasPriceField;
+  inputGasPrice: transactionFieldsActions.TInputGasPrice;
   getNonceRequested: transactionNetworkActions.TGetNonceRequested;
   resetTransactionRequested: transactionFieldsActions.TResetTransactionRequested;
   signTransactionRequested: transactionSignActions.TSignTransactionRequested;
   fetchTransactionData: transactionsActions.TFetchTransactionData;
   refreshAccountBalance: walletActions.TRefreshAccountBalance;
+  toggleAutoGasLimit: configMetaActions.TToggleAutoGasLimit;
 }
 
 interface OwnProps {
@@ -90,6 +90,7 @@ interface State {
   pollTimeout: boolean;
   showModal: boolean;
   domainRequest: IBaseSubdomainRequest | null;
+  successStatus: string;
 }
 
 class ETHSimpleClass extends React.Component<Props, State> {
@@ -104,7 +105,8 @@ class ETHSimpleClass extends React.Component<Props, State> {
     initialPollRequested: false,
     pollTimeout: false,
     showModal: false,
-    domainRequest: null
+    domainRequest: null,
+    successStatus: 'SUCCESS'
   };
 
   public componentDidMount() {
@@ -133,12 +135,8 @@ class ETHSimpleClass extends React.Component<Props, State> {
     }
     if (purchaseButtonClicked) {
       if (txNetworkState !== prevProps.txNetworkState) {
-        if (this.signTxIntended()) {
-          if (this.txFieldsValid()) {
-            setTimeout(this.signTx, 500);
-          } else {
-            this.setTxFields();
-          }
+        if (this.signTxIntended() && this.txFieldsValid()) {
+          this.signTx();
         }
       }
       if (currentTransaction !== prevProps.currentTransaction) {
@@ -146,22 +144,23 @@ class ETHSimpleClass extends React.Component<Props, State> {
           this.setState({ initialPollRequested: true });
           this.pollForTxHash();
         } else if (this.txBroadcastFailed(prevProps)) {
-          this.setState({
-            purchaseButtonClicked: false
-          });
+          this.setState({ purchaseButtonClicked: false });
         }
       }
       if (txState !== prevProps.txState) {
         if (this.txConfirmed()) {
           this.purchaseComplete();
         } else if (!pollTimeout) {
-          this.setState({ pollTimeout: true }, () => {
-            this.pollForTxHash();
-          });
+          this.setState({ pollTimeout: true }, () => this.pollForTxHash());
         }
       }
     }
   }
+
+  private setAddress = () => {
+    const address = this.props.toChecksumAddress(this.props.wallet.getAddressString());
+    this.setState({ address });
+  };
 
   public render() {
     const description = this.generateDescription();
@@ -190,56 +189,6 @@ class ETHSimpleClass extends React.Component<Props, State> {
       </div>
     );
   }
-
-  private setAddress = () => {
-    const address = this.props.toChecksumAddress(this.props.wallet.getAddressString());
-    this.setState({ address });
-  };
-
-  private setGas = () => {
-    const { gasEstimates } = this.props;
-    if (!!gasEstimates) {
-      const gasPrice = gasEstimates.fast.toString();
-      this.props.setGasPriceField({ raw: gasPrice, value: toWei(gasPrice, 9) });
-    }
-  };
-
-  private onChange = (event: React.FormEvent<HTMLInputElement>) => {
-    const { esFullDomain, esDomain } = constants;
-    const subdomain = normalise(event.currentTarget.value.trim().toLowerCase());
-    const subdomainEntered = subdomain.length > 0;
-    const isValidDomain = subdomainEntered ? isValidENSAddress(subdomain + esFullDomain) : false;
-    const domainRequest = subdomainEntered ? this.state.domainRequest : null;
-    this.setState(
-      {
-        subdomain,
-        isValidDomain,
-        purchaseButtonClicked: false,
-        domainRequest
-      },
-      () => {
-        if (isValidDomain) {
-          this.props.resolveDomainRequested(
-            subdomain + esDomain,
-            this.props.networkConfig.isTestnet
-          );
-        }
-        if (!subdomainEntered) {
-          this.props.resetTransactionRequested();
-          this.setGas();
-        }
-      }
-    );
-  };
-
-  private onFocus = () => {
-    this.props.resetTransactionRequested();
-    this.props.getNonceRequested();
-    this.setGas();
-    this.setState({ isFocused: true });
-  };
-
-  private onBlur = () => this.setState({ isFocused: false });
 
   private generateDescription = (): React.ReactElement<any> => {
     const { address, subdomain } = this.state;
@@ -291,7 +240,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
 
   private generatePurchaseButton = (): React.ReactElement<any> => {
     const { purchaseButtonClicked, subdomain, isValidDomain, address } = this.state;
-    const { isResolving, networkRequestPending, domainRequests } = this.props;
+    const { isResolving, domainRequests } = this.props;
     const { esDomain, subdomainPriceETH } = constants;
     const domainToCheck = subdomain + esDomain;
     const req = domainRequests[domainToCheck];
@@ -304,7 +253,6 @@ class ETHSimpleClass extends React.Component<Props, State> {
       isResolving ||
       purchaseButtonClicked ||
       subdomain.length < 1 ||
-      networkRequestPending ||
       !isAvailableDomain ||
       ownedByThisAddress ||
       this.insufficientEtherBalance();
@@ -337,9 +285,10 @@ class ETHSimpleClass extends React.Component<Props, State> {
     const checkIcon = <i className="fa fa-check" />;
     const xIcon = <i className="fa fa-remove" />;
     const refreshIcon = <i className="fa fa-refresh" />;
-    const validClass = 'ETHSimple-status help-block is-valid';
-    const warningClass = 'ETHSimple-status help-block is-semivalid';
-    const invalidClass = 'ETHSimple-status help-block is-invalid';
+    const divBaseClass = 'ETHSimple-status help-block is-';
+    const validClass = divBaseClass + 'valid';
+    const warningClass = divBaseClass + 'semivalid';
+    const invalidClass = divBaseClass + 'invalid';
     const refreshButton = (
       <button className="ETHSimple-section-refresh" onClick={this.refreshDomainResolution}>
         {refreshIcon}
@@ -426,6 +375,53 @@ class ETHSimpleClass extends React.Component<Props, State> {
     );
   };
 
+  private onChange = (event: React.FormEvent<HTMLInputElement>) => {
+    const { esFullDomain, esDomain } = constants;
+    const subdomain = normalise(event.currentTarget.value.trim().toLowerCase());
+    const subdomainEntered = subdomain.length > 0;
+    const isValidDomain = subdomainEntered ? isValidENSAddress(subdomain + esFullDomain) : false;
+    const domainRequest = subdomainEntered ? this.state.domainRequest : null;
+    this.setState(
+      {
+        subdomain,
+        isValidDomain,
+        purchaseButtonClicked: false,
+        domainRequest
+      },
+      () => {
+        if (isValidDomain) {
+          this.props.resolveDomainRequested(
+            subdomain + esDomain,
+            this.props.networkConfig.isTestnet
+          );
+        }
+        if (!subdomainEntered) {
+          this.props.resetTransactionRequested();
+          this.setGas();
+        }
+      }
+    );
+  };
+
+  private onFocus = () => {
+    this.props.resetTransactionRequested();
+    this.props.getNonceRequested();
+    this.setGas();
+    this.setState({ isFocused: true });
+    if (this.props.autoGasLimitEstimationStatus) {
+      this.props.toggleAutoGasLimit();
+    }
+  };
+
+  private onBlur = () => this.setState({ isFocused: false });
+
+  private setGas = () => {
+    const { gasEstimates } = this.props;
+    if (!!gasEstimates) {
+      this.props.inputGasPrice(gasEstimates.fast.toString());
+    }
+  };
+
   private insufficientEtherBalance = (): boolean => {
     const { subdomainPriceWei, purchaseSubdomainGasLimit } = constants;
     const { gasPrice, etherBalance } = this.props;
@@ -464,7 +460,11 @@ class ETHSimpleClass extends React.Component<Props, State> {
         initialPollRequested: false
       },
       () => {
-        this.setTxFields();
+        if (this.txFieldsValid() && this.props.signedTx) {
+          this.openModal();
+        } else {
+          this.setTxFields();
+        }
       }
     );
   };
@@ -498,15 +498,29 @@ class ETHSimpleClass extends React.Component<Props, State> {
     return bufferToHex(Wei(subdomainPriceWei));
   };
 
+  private getTxGasPrice = (): string => {
+    const { gasEstimates } = this.props;
+    const { purchaseSubdomainGasPrice } = constants;
+    const gasPrice = !!gasEstimates ? gasEstimates.fast.toString() : purchaseSubdomainGasPrice;
+    return gasPrice;
+  };
+
+  private getTxGasLimit = (): string => {
+    const { purchaseSubdomainGasLimit } = constants;
+    return bufferToHex(new BN(purchaseSubdomainGasLimit));
+  };
+
   private setTxFields = () => {
+    const { successStatus } = this.state;
     const { txNetworkState, transaction } = this.props;
-    const { subdomainPriceETH, subdomainPriceWei, purchaseSubdomainGasLimit } = constants;
-    const success = 'SUCCESS';
+    const { subdomainPriceETH, subdomainPriceWei } = constants;
     const txFields = getTransactionFields(transaction);
     const txAddress = this.getTxAddress();
     const txData = this.getTxData();
     const txValue = this.getTxValue();
-    if (this.props.toChecksumAddress(txFields.to) !== txAddress) {
+    const txGasPrice = this.getTxGasPrice();
+    const txGasLimit = this.getTxGasLimit();
+    if (txFields.to !== txAddress) {
       this.props.setToField({
         raw: txAddress,
         value: Address(txAddress)
@@ -521,36 +535,43 @@ class ETHSimpleClass extends React.Component<Props, State> {
         value: Wei(subdomainPriceWei)
       });
     }
-    if (txNetworkState.gasEstimationStatus !== success) {
-      this.props.inputGasLimit(purchaseSubdomainGasLimit);
+    if (txFields.gasPrice !== txGasPrice) {
+      this.props.inputGasPrice(txGasPrice);
     }
-    if (txNetworkState.getNonceStatus !== success) {
+    if (txFields.gasLimit !== txGasLimit) {
+      this.props.inputGasLimit(txGasLimit);
+    }
+    if (txNetworkState.getNonceStatus !== successStatus) {
       this.props.getNonceRequested();
     }
   };
 
   private signTxIntended = (): boolean => {
-    const { signaturePending, networkRequestPending } = this.props;
-    if (this.state.purchaseButtonClicked && !signaturePending && !networkRequestPending) {
+    const { signaturePending, signedTx } = this.props;
+    if (this.state.purchaseButtonClicked && !signaturePending && !signedTx) {
       return true;
     }
     return false;
   };
 
   private txFieldsValid = (): boolean => {
-    const { isFullTransaction, validGasLimit, transaction, txNetworkState } = this.props;
+    const { successStatus } = this.state;
+    const { isFullTransaction, transaction, txNetworkState } = this.props;
     const txFields = getTransactionFields(transaction);
     const txAddress = this.getTxAddress();
     const txData = this.getTxData();
     const txValue = this.getTxValue();
-    const success = 'SUCCESS';
+    const txGasPrice = this.cleanHexString(
+      bufferToHex(gasPriceToBase(Number(this.getTxGasPrice())))
+    );
+    const txGasLimit = this.cleanHexString(this.getTxGasLimit());
     if (
-      this.props.toChecksumAddress(txFields.to) === txAddress &&
+      txFields.to === txAddress &&
       txFields.data === txData &&
       txFields.value === txValue &&
-      txNetworkState.gasEstimationStatus === success &&
-      validGasLimit &&
-      txNetworkState.getNonceStatus === success &&
+      txFields.gasPrice === txGasPrice &&
+      txFields.gasLimit === txGasLimit &&
+      txNetworkState.getNonceStatus === successStatus &&
       isFullTransaction
     ) {
       return true;
@@ -558,11 +579,13 @@ class ETHSimpleClass extends React.Component<Props, State> {
     return false;
   };
 
+  private cleanHexString = (input: string): string => {
+    return addHexPrefix(unpad(input));
+  };
+
   private signTx = () => {
-    if (this.txFieldsValid()) {
-      this.props.signTransactionRequested(this.props.transaction);
-      this.openModal();
-    }
+    this.props.signTransactionRequested(this.props.transaction);
+    this.openModal();
   };
 
   private txBroadcastSuccessful = (): boolean => {
@@ -616,18 +639,13 @@ class ETHSimpleClass extends React.Component<Props, State> {
     this.props.subdomainPurchased(this.state.subdomain + constants.esFullDomain);
     this.closeTxBroadcastedNotification();
     this.showTxConfirmedNotification();
-    this.setState(
-      {
-        purchaseButtonClicked: false
-      },
-      () => {
-        this.props.resetTransactionRequested();
-        this.props.getNonceRequested();
-        this.setGas();
-        this.props.refreshAccountBalance();
-        setTimeout(this.refreshDomainResolution, 2500);
-      }
-    );
+    this.setState({ purchaseButtonClicked: false }, () => {
+      this.props.resetTransactionRequested();
+      this.props.getNonceRequested();
+      this.setGas();
+      this.props.refreshAccountBalance();
+      setTimeout(this.refreshDomainResolution, 3000);
+    });
   };
 
   private refreshDomainResolution = () => {
@@ -686,10 +704,17 @@ class ETHSimpleClass extends React.Component<Props, State> {
   private cancelModal = () => this.closeModal(true);
 
   private closeModal = (closedByUser: boolean) => {
-    this.setState({
-      showModal: false,
-      purchaseButtonClicked: !closedByUser
-    });
+    this.setState(
+      {
+        showModal: false,
+        purchaseButtonClicked: !closedByUser
+      },
+      () => {
+        if (!this.props.autoGasLimitEstimationStatus) {
+          this.props.toggleAutoGasLimit();
+        }
+      }
+    );
   };
 
   private pollForTxHash = () => setTimeout(this.getTxStatus, 10000);
@@ -718,8 +743,6 @@ function mapStateToProps(state: AppState): StateProps {
     networkConfig: configSelectors.getNetworkConfig(state),
     toChecksumAddress: configSelectors.getChecksumAddressFn(state),
     ...derivedSelectors.getTransaction(state),
-    networkRequestPending: transactionNetworkSelectors.isNetworkRequestPending(state),
-    validGasLimit: transactionSelectors.isValidGasLimit(state),
     currentTransaction: transactionSelectors.getCurrentTransactionStatus(state),
     transactionBroadcasted: transactionSelectors.currentTransactionBroadcasted(state),
     signaturePending: derivedSelectors.signaturePending(state).isSignaturePending,
@@ -727,7 +750,8 @@ function mapStateToProps(state: AppState): StateProps {
       !!transactionSignSelectors.getSignedTx(state) || !!transactionSignSelectors.getWeb3Tx(state),
     etherBalance: walletSelectors.getEtherBalance(state),
     gasEstimates: gasSelectors.getEstimates(state),
-    gasPrice: transactionFieldsSelectors.getGasPrice(state)
+    gasPrice: transactionFieldsSelectors.getGasPrice(state),
+    autoGasLimitEstimationStatus: state.config.meta.autoGasLimit
   };
 }
 
@@ -739,12 +763,13 @@ const mapDispatchToProps: DispatchProps = {
   setValueField: transactionFieldsActions.setValueField,
   inputData: transactionFieldsActions.inputData,
   inputGasLimit: transactionFieldsActions.inputGasLimit,
-  setGasPriceField: transactionFieldsActions.setGasPriceField,
+  inputGasPrice: transactionFieldsActions.inputGasPrice,
   getNonceRequested: transactionNetworkActions.getNonceRequested,
   resetTransactionRequested: transactionFieldsActions.resetTransactionRequested,
   signTransactionRequested: transactionSignActions.signTransactionRequested,
   fetchTransactionData: transactionsActions.fetchTransactionData,
-  refreshAccountBalance: walletActions.refreshAccountBalance
+  refreshAccountBalance: walletActions.refreshAccountBalance,
+  toggleAutoGasLimit: configMetaActions.toggleAutoGasLimit
 };
 
 export default connect(mapStateToProps, mapDispatchToProps)(ETHSimpleClass);
