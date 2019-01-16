@@ -220,7 +220,7 @@ export function* handleNonceRequest(): SagaIterator {
     yield put(actions.getNonceSucceeded(retrievedNonce));
   } catch {
     yield put(
-      notificationsActions.showNotification('warning', 'Your addresses nonce could not be fetched')
+      notificationsActions.showNotification('warning', "Your address' nonce could not be fetched")
     );
     yield put(actions.getNonceFailed());
   }

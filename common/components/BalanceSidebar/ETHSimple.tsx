@@ -2,7 +2,6 @@ import React from 'react';
 import { connect } from 'react-redux';
 import { sha3, bufferToHex } from 'ethereumjs-util';
 import EthTx from 'ethereumjs-tx';
-import BN from 'bn.js';
 
 import { translate, translateRaw } from 'translations';
 import { TransactionState, TransactionReceipt } from 'types/transactions';
@@ -26,7 +25,7 @@ import { transactionsActions } from 'features/transactions';
 import { walletSelectors, walletActions } from 'features/wallet';
 import { IWallet } from 'libs/wallet';
 import { isValidENSAddress } from 'libs/validators';
-import { getNameHash, NameState, IBaseSubdomainRequest } from 'libs/ens';
+import { normalise, getNameHash, NameState, IBaseSubdomainRequest } from 'libs/ens';
 import Contract from 'libs/contracts';
 import { Address, Wei, toWei, handleValues } from 'libs/units';
 import { getTransactionFields } from 'libs/transaction/utils/ether';
@@ -108,34 +107,6 @@ class ETHSimpleClass extends React.Component<Props, State> {
     domainRequest: null
   };
 
-  public render() {
-    const description = this.generateDescription();
-    const subdomainInputField = this.generateSubdomainInputField();
-    const purchaseButton = this.generatePurchaseButton();
-    const statusLabel = this.state.subdomain.length > 0 ? this.generateStatusLabel() : null;
-    const modal = this.generateModal();
-    const esLogoButton = this.generateESLogoButton();
-    const component = constants.supportedNetworks.includes(this.props.networkConfig.id) ? (
-      <div>
-        <form className="ETHSimpleInput" onSubmit={this.purchaseSubdomain}>
-          {subdomainInputField}
-          {purchaseButton}
-        </form>
-        {statusLabel}
-        {modal}
-      </div>
-    ) : null;
-
-    return (
-      <div className="ETHSimple">
-        <h5 className="ETHSimple-title">{translate('ETHSIMPLE_TITLE')}</h5>
-        <div className="ETHSimple-description">{description}</div>
-        {component}
-        {esLogoButton}
-      </div>
-    );
-  }
-
   public componentDidMount() {
     this.setAddress();
   }
@@ -192,6 +163,34 @@ class ETHSimpleClass extends React.Component<Props, State> {
     }
   }
 
+  public render() {
+    const description = this.generateDescription();
+    const subdomainInputField = this.generateSubdomainInputField();
+    const purchaseButton = this.generatePurchaseButton();
+    const statusLabel = this.state.subdomain.length > 0 ? this.generateStatusLabel() : null;
+    const modal = this.generateModal();
+    const esLogoButton = this.generateESLogoButton();
+    const component = constants.supportedNetworks.includes(this.props.networkConfig.id) ? (
+      <div>
+        <form className="ETHSimpleInput" onSubmit={this.purchaseSubdomain}>
+          {subdomainInputField}
+          {purchaseButton}
+        </form>
+        {statusLabel}
+        {modal}
+      </div>
+    ) : null;
+
+    return (
+      <div className="ETHSimple">
+        <h5 className="ETHSimple-title">{translate('ETHSIMPLE_TITLE')}</h5>
+        <div className="ETHSimple-description">{description}</div>
+        {component}
+        {esLogoButton}
+      </div>
+    );
+  }
+
   private setAddress = () => {
     const address = this.props.toChecksumAddress(this.props.wallet.getAddressString());
     this.setState({ address });
@@ -207,8 +206,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
 
   private onChange = (event: React.FormEvent<HTMLInputElement>) => {
     const { esFullDomain, esDomain } = constants;
-    const subdomain = event.currentTarget.value.trim().toLowerCase();
-    const purchaseButtonClicked = false;
+    const subdomain = normalise(event.currentTarget.value.trim().toLowerCase());
     const subdomainEntered = subdomain.length > 0;
     const isValidDomain = subdomainEntered ? isValidENSAddress(subdomain + esFullDomain) : false;
     const domainRequest = subdomainEntered ? this.state.domainRequest : null;
@@ -216,7 +214,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
       {
         subdomain,
         isValidDomain,
-        purchaseButtonClicked,
+        purchaseButtonClicked: false,
         domainRequest
       },
       () => {
@@ -246,14 +244,13 @@ class ETHSimpleClass extends React.Component<Props, State> {
   private generateDescription = (): React.ReactElement<any> => {
     const { address, subdomain } = this.state;
     const { networkConfig } = this.props;
-    const supportedNetwork = constants.supportedNetworks.includes(networkConfig.id);
+    const { supportedNetworks, esFullDomain, placeholderDomain } = constants;
+    const supportedNetwork = supportedNetworks.includes(networkConfig.id);
     if (supportedNetwork) {
       const addressToDisplay =
         address.length > 0 ? address : translateRaw('ETHSIMPLE_DESC_DEFAULT_NO_ADDR');
       const nameToDisplay =
-        subdomain.length > 0
-          ? subdomain + constants.esFullDomain
-          : constants.placeholderDomain + constants.esFullDomain;
+        subdomain.length > 0 ? subdomain + esFullDomain : placeholderDomain + esFullDomain;
       const cutoff = subdomain.length < 5 && subdomain.length > 0 ? 0 : 15;
       return translate('ETHSIMPLE_DESC', {
         $subdomain: nameToDisplay,
@@ -275,7 +272,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
       <div className="input-group-wrapper">
         <label className="input-group input-group-inline">
           <Input
-            className="ETHSimple-name border-rad-right-0"
+            className="ETHSimple-name ETHSimple-name-input border-rad-right-0"
             value={subdomain}
             isValid={isValidDomain}
             type="text"
@@ -295,7 +292,8 @@ class ETHSimpleClass extends React.Component<Props, State> {
   private generatePurchaseButton = (): React.ReactElement<any> => {
     const { purchaseButtonClicked, subdomain, isValidDomain, address } = this.state;
     const { isResolving, networkRequestPending, domainRequests } = this.props;
-    const domainToCheck = subdomain + constants.esDomain;
+    const { esDomain, subdomainPriceETH } = constants;
+    const domainToCheck = subdomain + esDomain;
     const req = domainRequests[domainToCheck];
     const isAvailableDomain =
       !!req && !!req.data ? (req.data as IBaseSubdomainRequest).mode === NameState.Open : false;
@@ -316,7 +314,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
         disabled={purchaseDisabled}
         onClick={this.purchaseSubdomain}
       >
-        {translate('ETHSIMPLE_ACTION', { $domainEthPrice: constants.subdomainPriceETH })}
+        {translate('ETHSIMPLE_ACTION', { $domainEthPrice: subdomainPriceETH })}
       </button>
     );
   };
@@ -324,7 +322,8 @@ class ETHSimpleClass extends React.Component<Props, State> {
   private generateStatusLabel = (): React.ReactElement<any> => {
     const { subdomain, isValidDomain, purchaseButtonClicked, address } = this.state;
     const { isResolving, domainRequests } = this.props;
-    const domainToCheck = subdomain + constants.esDomain;
+    const { esDomain, esFullDomain } = constants;
+    const domainToCheck = subdomain + esDomain;
     const req = domainRequests[domainToCheck];
     const requestDataValid = !!req && !!req.data;
     const isAvailableDomain = requestDataValid
@@ -346,7 +345,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
         {refreshIcon}
       </button>
     );
-    const domainName = { $domain: subdomain + constants.esFullDomain };
+    const domainName = { $domain: subdomain + esFullDomain };
     let className = '';
     let icon = null;
     let label = null;
@@ -496,7 +495,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
 
   private getTxValue = (): string => {
     const { subdomainPriceWei } = constants;
-    return bufferToHex(new BN(subdomainPriceWei));
+    return bufferToHex(Wei(subdomainPriceWei));
   };
 
   private setTxFields = () => {

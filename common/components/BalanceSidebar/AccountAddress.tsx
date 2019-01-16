@@ -95,15 +95,15 @@ class AccountAddress extends React.Component<Props, State> {
   public render() {
     const { address, addressLabel, purchasedSubdomainLabel } = this.props;
     const { copied, reverseResolvedNameExists } = this.state;
-    const labelContent =
-      reverseResolvedNameExists || !!purchasedSubdomainLabel
-        ? this.generateAccountNameLabel()
-        : this.generateLabelContent();
+    const shouldShowAccountName =
+      !this.props.networkConfig.isTestnet &&
+      (reverseResolvedNameExists || !!purchasedSubdomainLabel);
+    const labelContent = shouldShowAccountName
+      ? this.generateAccountNameLabel()
+      : this.generateLabelContent();
     const labelButton = this.generateLabelButton();
     const addressClassName = `AccountInfo-address-addr ${
-      addressLabel || reverseResolvedNameExists || !!purchasedSubdomainLabel
-        ? 'AccountInfo-address-addr--small'
-        : ''
+      addressLabel || shouldShowAccountName ? 'AccountInfo-address-addr--small' : ''
     }`;
 
     return (

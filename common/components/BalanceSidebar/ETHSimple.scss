@@ -9,6 +9,10 @@
 
   &-name {
   	margin-bottom: 0.4rem;
+
+  	&-input {
+      width: 100px !important
+    }
   }
 
   &-button {

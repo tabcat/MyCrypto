@@ -1,13 +1,12 @@
 import React from 'react';
 import { connect } from 'react-redux';
+import { bufferToHex } from 'ethereumjs-util';
 import EthTx from 'ethereumjs-tx';
 
 import { translate, translateRaw } from 'translations';
 import { TransactionState, TransactionReceipt } from 'types/transactions';
 import * as derivedSelectors from 'features/selectors';
 import { AppState } from 'features/reducers';
-import { configSelectors } from 'features/config';
-import { walletSelectors } from 'features/wallet';
 import {
   transactionFieldsActions,
   transactionNetworkActions,
@@ -31,16 +30,13 @@ import { ConfirmationModal } from 'components/ConfirmationModal';
 import './AccountNameLabel.scss';
 
 interface StateProps {
-  wallet: AppState['wallet']['inst'];
   notifications: AppState['notifications'];
-  txNetworkFields: AppState['transaction']['network'];
-  addressRequests: AppState['ens']['addressRequests'];
+  txNetworkState: AppState['transaction']['network'];
   validGasLimit: boolean;
   networkRequestPending: boolean;
   isFullTransaction: boolean;
   txState: { [txHash: string]: TransactionState };
   currentTransaction: false | transactionBroadcastTypes.ITransactionStatus | null;
-  networkConfig: ReturnType<typeof configSelectors.getNetworkConfig>;
   transaction: EthTx;
   transactionBroadcasted: boolean | null;
   signaturePending: boolean;
@@ -89,11 +85,48 @@ class AccountNameLabel extends React.Component<Props, State> {
     pollTimeout: false
   };
 
-  public render() {
-    const { signaturePending, signedTx } = this.props;
-    const { showModal } = this.state;
-    const accountNameButton = this.generateAccountNameButton();
+  public componentDidUpdate(prevProps: Props) {
+    const { txState, txNetworkState, currentTransaction } = this.props;
+    const { setNameButtonClicked, pollTimeout } = this.state;
+    if (setNameButtonClicked) {
+      if (txNetworkState !== prevProps.txNetworkState) {
+        if (this.signTxIntended()) {
+          if (this.txFieldsValid()) {
+            setTimeout(this.signTx, 500);
+          } else {
+            this.setTxFields();
+          }
+        }
+      }
+      if (currentTransaction !== prevProps.currentTransaction) {
+        if (this.txBroadcastSuccessful()) {
+          this.setState({ initialPollRequested: true });
+          this.pollForTxHash();
+          this.handleNoHover();
+        } else if (this.txBroadcastFailed(prevProps)) {
+          this.setState({
+            setNameButtonClicked: false
+          });
+        }
+      }
+      if (txState !== prevProps.txState) {
+        if (this.txConfirmed()) {
+          this.setNameComplete();
+        } else if (!pollTimeout) {
+          this.setState({ pollTimeout: true });
+          this.pollForTxHash();
+        }
+      }
+    }
+  }
 
+  public render() {
+    const { addressRequest, purchasedSubdomainLabel } = this.props;
+    const accountNameButton =
+      !addressRequest && (!purchasedSubdomainLabel || purchasedSubdomainLabel.length < 1)
+        ? null
+        : this.generateAccountNameButton();
+    const modal = this.generateModal();
     return (
       <div className="AccountNameLabel">
         <div
@@ -103,87 +136,14 @@ class AccountNameLabel extends React.Component<Props, State> {
         >
           {accountNameButton}
         </div>
-        <ConfirmationModal
-          isOpen={!signaturePending && signedTx && showModal}
-          onClose={this.cancelModal}
-        />
+        {modal}
       </div>
     );
   }
 
-  public componentDidUpdate(prevProps: Props) {
-    const {
-      txState,
-      isFullTransaction,
-      validGasLimit,
-      networkRequestPending,
-      txNetworkFields,
-      currentTransaction,
-      signaturePending
-    } = this.props;
-    const { setNameButtonClicked, initialPollRequested, pollTimeout } = this.state;
-    if (txNetworkFields !== prevProps.txNetworkFields) {
-      if (
-        setNameButtonClicked &&
-        !signaturePending &&
-        !networkRequestPending &&
-        isFullTransaction &&
-        validGasLimit &&
-        this.checkNetworkFields() &&
-        this.checkTxFields()
-      ) {
-        this.props.signTransactionRequested(this.props.transaction);
-        this.openModal();
-      }
-    }
-    if (currentTransaction !== prevProps.currentTransaction) {
-      if (
-        setNameButtonClicked &&
-        !initialPollRequested &&
-        !!currentTransaction &&
-        currentTransaction.broadcastSuccessful
-      ) {
-        this.setState({ initialPollRequested: true });
-        this.pollForHash();
-        this.handleNoHover();
-      } else if (
-        setNameButtonClicked &&
-        !!currentTransaction &&
-        !!prevProps.currentTransaction &&
-        !prevProps.currentTransaction.broadcastSuccessful &&
-        prevProps.currentTransaction.isBroadcasting &&
-        !currentTransaction.broadcastSuccessful &&
-        !currentTransaction.isBroadcasting
-      ) {
-        this.setState({
-          setNameButtonClicked: false
-        });
-      }
-    }
-    if (txState !== prevProps.txState) {
-      if (
-        setNameButtonClicked &&
-        initialPollRequested &&
-        !!currentTransaction &&
-        !!currentTransaction.broadcastedHash &&
-        !!txState[currentTransaction.broadcastedHash].receipt &&
-        !!(txState[currentTransaction.broadcastedHash].receipt as TransactionReceipt).status &&
-        (txState[currentTransaction.broadcastedHash].receipt as TransactionReceipt).status === 1
-      ) {
-        this.setNameComplete();
-      } else if (!pollTimeout) {
-        this.setState({ pollTimeout: true });
-        this.pollForHash();
-      }
-    }
-  }
-
-  private generateAccountNameButton = () => {
+  private generateAccountNameButton = (): React.ReactElement<any> => {
     const { hover, setNameButtonClicked } = this.state;
     const { addressRequest, purchasedSubdomainLabel } = this.props;
-    if (!addressRequest && (!purchasedSubdomainLabel || purchasedSubdomainLabel.length < 1)) {
-      return null;
-    }
     const showName = !!addressRequest && addressRequest.name.length > 0;
     const iconBaseName = 'help-block status-icon fa fa-';
     const spanBaseName = 'help-block status-label is-';
@@ -230,6 +190,16 @@ class AccountNameLabel extends React.Component<Props, State> {
     );
   };
 
+  private generateModal = (): React.ReactElement<any> => {
+    const { signaturePending, signedTx } = this.props;
+    return (
+      <ConfirmationModal
+        isOpen={!signaturePending && signedTx && this.state.showModal}
+        onClose={this.cancelModal}
+      />
+    );
+  };
+
   private handleHover = () => {
     const { addressRequest } = this.props;
     if (!(!!addressRequest && addressRequest.name.length > 0)) {
@@ -237,38 +207,7 @@ class AccountNameLabel extends React.Component<Props, State> {
     }
   };
 
-  private handleNoHover = () => {
-    this.setState({ hover: false });
-  };
-
-  private buildTxData = () => {
-    const nameToSet = this.props.purchasedSubdomainLabel;
-    const inputs = { name: nameToSet } as any;
-    const encodedInputData = this.state.reverseRegistrarInstance.setName.encodeInput(Object.keys(
-      inputs
-    ).reduce((accu, key) => ({ ...accu, [key]: inputs[key] }), {}) as ReturnType<typeof inputs>);
-    return encodedInputData;
-  };
-
-  private getToAddress = () => {
-    return networkConfigs.main.public.reverse;
-  };
-
-  private updateTxFields = () => {
-    const toAddress = this.getToAddress();
-    const value = '0';
-    const gasLimit = '46818';
-    this.props.setToField({
-      raw: toAddress,
-      value: Address(toAddress)
-    });
-    this.props.setValueField({
-      raw: value,
-      value: Wei(value)
-    });
-    this.props.inputData(this.buildTxData());
-    this.props.inputGasLimit(gasLimit);
-  };
+  private handleNoHover = () => this.setState({ hover: false });
 
   private setName = (ev: React.FormEvent<HTMLElement>) => {
     ev.preventDefault();
@@ -281,57 +220,159 @@ class AccountNameLabel extends React.Component<Props, State> {
           initialPollRequested: false
         },
         () => {
-          this.updateTxFields();
+          this.setTxFields();
         }
       );
     }
   };
 
-  private checkNetworkFields = () => {
-    const { txNetworkFields } = this.props;
+  private getTxAddress = (): string => {
+    return networkConfigs.main.public.reverse;
+  };
+
+  private getTxData = (): string => {
+    const { purchasedSubdomainLabel } = this.props;
+    const nameToSet = !!purchasedSubdomainLabel ? purchasedSubdomainLabel : '';
+    return this.state.reverseRegistrarInstance.setName.encodeInput({ name: nameToSet });
+  };
+
+  private getTxValue = (): string => {
+    return bufferToHex(Wei('0'));
+  };
+
+  private setTxFields = () => {
+    const { txNetworkState, transaction } = this.props;
+    const txFields = getTransactionFields(transaction);
+    const txAddress = this.getTxAddress();
+    const txData = this.getTxData();
+    const txValue = this.getTxValue();
+    const txGasLimit = '46818';
+    const success = 'SUCCESS';
+    if (txFields.to !== txAddress) {
+      this.props.setToField({
+        raw: txAddress,
+        value: Address(txAddress)
+      });
+    }
+    if (txFields.data !== txData) {
+      this.props.inputData(txData);
+    }
+    if (txFields.value !== txValue && txFields.value !== txValue.substring(0, txValue.length - 1)) {
+      this.props.setValueField({
+        raw: txValue,
+        value: Wei(txValue)
+      });
+    }
+    if (txNetworkState.gasEstimationStatus !== success) {
+      this.props.inputGasLimit(txGasLimit);
+    }
+    if (txNetworkState.getNonceStatus !== success) {
+      this.props.getNonceRequested();
+    }
+  };
+
+  private signTxIntended = (): boolean => {
+    const { signaturePending, networkRequestPending } = this.props;
+    if (this.state.setNameButtonClicked && !signaturePending && !networkRequestPending) {
+      return true;
+    }
+    return false;
+  };
+
+  private txFieldsValid = (): boolean => {
+    const { isFullTransaction, validGasLimit, transaction, txNetworkState } = this.props;
+    const txFields = getTransactionFields(transaction);
+    const txAddress = this.getTxAddress();
+    const txData = this.getTxData();
+    const txValue = this.getTxValue();
     const success = 'SUCCESS';
     if (
-      txNetworkFields.gasEstimationStatus === success &&
-      txNetworkFields.getNonceStatus === success
+      txFields.to === txAddress &&
+      txFields.data === txData &&
+      (txFields.value === txValue || txFields.value === txValue.substring(0, txValue.length - 1)) &&
+      txNetworkState.gasEstimationStatus === success &&
+      validGasLimit &&
+      txNetworkState.getNonceStatus === success &&
+      isFullTransaction
     ) {
       return true;
     }
     return false;
   };
 
-  private checkTxFields = () => {
-    const txFields = getTransactionFields(this.props.transaction);
-    if (txFields.to === this.getToAddress() && txFields.data === this.buildTxData()) {
+  private signTx = () => {
+    if (this.txFieldsValid()) {
+      this.props.signTransactionRequested(this.props.transaction);
+      this.openModal();
+    }
+  };
+
+  private txBroadcastSuccessful = (): boolean => {
+    const { setNameButtonClicked, initialPollRequested } = this.state;
+    const { currentTransaction } = this.props;
+    if (
+      setNameButtonClicked &&
+      !initialPollRequested &&
+      !!currentTransaction &&
+      currentTransaction.broadcastSuccessful
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  private txBroadcastFailed = (prevProps: Props): boolean => {
+    const { currentTransaction } = this.props;
+    if (
+      this.state.setNameButtonClicked &&
+      !!currentTransaction &&
+      !!prevProps.currentTransaction &&
+      !prevProps.currentTransaction.broadcastSuccessful &&
+      prevProps.currentTransaction.isBroadcasting &&
+      !currentTransaction.broadcastSuccessful &&
+      !currentTransaction.isBroadcasting
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  private txConfirmed = (): boolean => {
+    const { setNameButtonClicked, initialPollRequested } = this.state;
+    const { currentTransaction, txState } = this.props;
+    if (
+      setNameButtonClicked &&
+      initialPollRequested &&
+      !!currentTransaction &&
+      !!currentTransaction.broadcastedHash &&
+      !!txState[currentTransaction.broadcastedHash].receipt &&
+      !!(txState[currentTransaction.broadcastedHash].receipt as TransactionReceipt).status &&
+      (txState[currentTransaction.broadcastedHash].receipt as TransactionReceipt).status === 1
+    ) {
       return true;
     }
     return false;
   };
 
   private setNameComplete = () => {
-    this.handleNotifications();
+    this.closeTxBroadcastedNotification();
+    this.showTxConfirmedNotification();
     this.setState(
       {
         setNameButtonClicked: false,
         initialPollRequested: false
       },
       () => {
-        this.refreshAddressResolution();
         this.props.resetTransactionRequested();
         this.props.getNonceRequested();
+        setTimeout(this.refreshAddressResolution, 2500);
       }
     );
   };
 
   private refreshAddressResolution = () => {
     const { address } = this.props;
-    if (!this.props.networkConfig.isTestnet) {
-      this.props.reverseResolveAddressRequested(address, true);
-    }
-  };
-
-  private handleNotifications = () => {
-    this.closeTxBroadcastedNotification();
-    this.showTxConfirmedNotification();
+    this.props.reverseResolveAddressRequested(address, true);
   };
 
   private closeTxBroadcastedNotification = () => {
@@ -381,9 +422,7 @@ class AccountNameLabel extends React.Component<Props, State> {
     }
   }
 
-  private cancelModal = () => {
-    this.closeModal(true);
-  };
+  private cancelModal = () => this.closeModal(true);
 
   private closeModal = (closedByUser: boolean) => {
     this.setState({
@@ -392,9 +431,7 @@ class AccountNameLabel extends React.Component<Props, State> {
     });
   };
 
-  private pollForHash = () => {
-    setTimeout(this.getTxStatus, 10000);
-  };
+  private pollForTxHash = () => setTimeout(this.getTxStatus, 10000);
 
   private getTxStatus = () => {
     this.setState({ pollTimeout: false }, () => {
@@ -412,12 +449,9 @@ class AccountNameLabel extends React.Component<Props, State> {
 
 function mapStateToProps(state: AppState): StateProps {
   return {
-    wallet: walletSelectors.getWalletInst(state),
-    txNetworkFields: state.transaction.network,
+    txNetworkState: state.transaction.network,
     notifications: state.notifications,
-    addressRequests: state.ens.addressRequests,
     txState: state.transactions.txData,
-    networkConfig: configSelectors.getNetworkConfig(state),
     ...derivedSelectors.getTransaction(state),
     networkRequestPending: transactionNetworkSelectors.isNetworkRequestPending(state),
     validGasLimit: transactionSelectors.isValidGasLimit(state),
