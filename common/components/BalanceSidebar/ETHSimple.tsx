@@ -405,7 +405,6 @@ class ETHSimpleClass extends React.Component<Props, State> {
 
   private onFocus = () => {
     this.props.resetTransactionRequested();
-    this.props.getNonceRequested();
     this.setGas();
     this.setState({ isFocused: true });
     if (this.props.autoGasLimitEstimationStatus) {
@@ -641,7 +640,6 @@ class ETHSimpleClass extends React.Component<Props, State> {
     this.showTxConfirmedNotification();
     this.setState({ purchaseButtonClicked: false }, () => {
       this.props.resetTransactionRequested();
-      this.props.getNonceRequested();
       this.setGas();
       this.props.refreshAccountBalance();
       setTimeout(this.refreshDomainResolution, 3000);

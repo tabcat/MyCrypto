@@ -390,7 +390,6 @@ class AccountNameLabel extends React.Component<Props, State> {
       },
       () => {
         this.props.resetTransactionRequested();
-        this.props.getNonceRequested();
         setTimeout(this.refreshAddressResolution, 3000);
       }
     );
