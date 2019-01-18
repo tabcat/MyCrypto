@@ -52,6 +52,7 @@ interface StateProps {
   gasEstimates: AppState['gas']['estimates'];
   gasPrice: AppState['transaction']['fields']['gasPrice'];
   autoGasLimitEstimationStatus: AppState['config']['meta']['autoGasLimit'];
+  offline: boolean;
 }
 
 interface DispatchProps {
@@ -91,6 +92,7 @@ interface State {
   showModal: boolean;
   domainRequest: IBaseSubdomainRequest | null;
   successStatus: string;
+  currentTx: false | transactionBroadcastTypes.ITransactionStatus | null;
 }
 
 class ETHSimpleClass extends React.Component<Props, State> {
@@ -106,7 +108,8 @@ class ETHSimpleClass extends React.Component<Props, State> {
     pollTimeout: false,
     showModal: false,
     domainRequest: null,
-    successStatus: 'SUCCESS'
+    successStatus: 'SUCCESS',
+    currentTx: false,
   };
 
   public componentDidMount() {
@@ -141,7 +144,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
       }
       if (currentTransaction !== prevProps.currentTransaction) {
         if (this.txBroadcastSuccessful()) {
-          this.setState({ initialPollRequested: true });
+          this.setState({ initialPollRequested: true, currentTx: currentTransaction });
           this.pollForTxHash();
         } else if (this.txBroadcastFailed(prevProps)) {
           this.setState({ purchaseButtonClicked: false });
@@ -153,6 +156,8 @@ class ETHSimpleClass extends React.Component<Props, State> {
         } else if (!pollTimeout) {
           this.setState({ pollTimeout: true }, () => this.pollForTxHash());
         }
+      } else if (prevProps.offline !== this.props.offline && !this.props.offline) {
+        this.setState({ pollTimeout: true }, () => this.pollForTxHash());
       }
     }
   }
@@ -381,12 +386,14 @@ class ETHSimpleClass extends React.Component<Props, State> {
     const subdomainEntered = subdomain.length > 0;
     const isValidDomain = subdomainEntered ? isValidENSAddress(subdomain + esFullDomain) : false;
     const domainRequest = subdomainEntered ? this.state.domainRequest : null;
+    const currentTx = subdomainEntered && this.state.currentTx === false ? this.state.currentTx : false;
     this.setState(
       {
         subdomain,
         isValidDomain,
         purchaseButtonClicked: false,
-        domainRequest
+        domainRequest,
+        currentTx
       },
       () => {
         if (isValidDomain) {
@@ -618,19 +625,23 @@ class ETHSimpleClass extends React.Component<Props, State> {
   };
 
   private txConfirmed = (): boolean => {
-    const { purchaseButtonClicked, initialPollRequested } = this.state;
+    const { purchaseButtonClicked, initialPollRequested, currentTx } = this.state;
     const { currentTransaction, txState } = this.props;
-    if (
+
+    let txBroadcasted =
       purchaseButtonClicked &&
       initialPollRequested &&
-      !!currentTransaction &&
-      !!currentTransaction.broadcastedHash &&
-      !!txState[currentTransaction.broadcastedHash].receipt &&
-      !!(txState[currentTransaction.broadcastedHash].receipt as TransactionReceipt).status &&
-      (txState[currentTransaction.broadcastedHash].receipt as TransactionReceipt).status === 1
-    ) {
-      return true;
-    }
+      !!currentTx &&
+      !!currentTx.broadcastedHash;
+    let receiptRecieved =
+      txBroadcasted &&
+      !!txState[currentTx.broadcastedHash].receipt &&
+      !!(txState[currentTx.broadcastedHash].receipt as TransactionReceipt).status;
+
+    if (txBroadcasted) {
+      if (receiptRecieved) {
+        return (txState[currentTx.broadcastedHash].receipt as TransactionReceipt).status === 1;
+      }
     return false;
   };
 
@@ -642,9 +653,36 @@ class ETHSimpleClass extends React.Component<Props, State> {
       this.props.resetTransactionRequested();
       this.setGas();
       this.props.refreshAccountBalance();
-      setTimeout(this.refreshDomainResolution, 3000);
+      this.recursiveNameUpdate(this.state.subdomain + constants.esDomain, this.state.address);
     });
   };
+
+  private recursiveNameUpdate = (domainToCheck: string, address: string, ttl = 35: number) => {
+    const { isResolving, domainRequests } = this.props;
+    const req = domainRequests[domainToCheck];
+    const requestDataValid = !!req && !!req.data;
+    const isAvailableDomain = requestDataValid
+      ? (req.data as IBaseSubdomainRequest).mode === NameState.Open
+      : false;
+    const ownedByThisAddress = requestDataValid
+      ? (req.data as IBaseSubdomainRequest).ownerAddress === address
+      : false;
+
+    if (ttl > 0) {
+      if (!!isResolving) {
+        setTimeout(() => this.recursiveNameUpdate(domainToCheck, address, ttl - 1), 250)
+      } else {
+        if (!!ownedByThisAddress) {
+          console.log('EthSimple purchase success');
+        } else {
+          this.refreshDomainResolution();
+          setTimeout(() => this.recursiveNameUpdate(domainToCheck, address, ttl - 1), 350);
+        }
+      }
+    } else {
+      console.error('EthSimple name resolution check ttl went to 0');
+    }
+  }
 
   private refreshDomainResolution = () => {
     this.props.resolveDomainRequested(
@@ -655,18 +693,15 @@ class ETHSimpleClass extends React.Component<Props, State> {
   };
 
   private closeTxBroadcastedNotification = () => {
-    const { notifications, currentTransaction } = this.props;
-    for (let i = 0; i < notifications.length; i++) {
-      const notif = notifications[i];
-      if (
-        !!notif.componentConfig &&
-        !!currentTransaction &&
-        notif.componentConfig.txHash === currentTransaction.broadcastedHash
-      ) {
-        this.props.closeNotification(notif);
-        break;
-      }
-    }
+    const { currentTx } = this.state;
+    const { notifications } = this.props;
+    let currentTxNotif = Object.keys(notifications).filter((key, index) => {
+      let notif = notifications[key];
+      return !!notif.componentConfig &&
+      !!currentTx &&
+      notif.componentConfig.txHash === currentTx.broadcastedHash
+    })[0]
+    this.props.closeNotification(currentTxNotif);
   };
 
   private showTxConfirmedNotification = () => {
@@ -719,13 +754,13 @@ class ETHSimpleClass extends React.Component<Props, State> {
 
   private getTxStatus = () => {
     this.setState({ pollTimeout: false }, () => {
-      const { currentTransaction } = this.props;
+      const { currentTx } = this.state;
       if (
         this.state.purchaseButtonClicked &&
-        !!currentTransaction &&
-        !!currentTransaction.broadcastedHash
+        !!currentTx &&
+        !!currentTx.broadcastedHash
       ) {
-        this.props.fetchTransactionData(currentTransaction.broadcastedHash);
+        this.props.fetchTransactionData(currentTx.broadcastedHash);
       }
     });
   };
@@ -749,7 +784,8 @@ function mapStateToProps(state: AppState): StateProps {
     etherBalance: walletSelectors.getEtherBalance(state),
     gasEstimates: gasSelectors.getEstimates(state),
     gasPrice: transactionFieldsSelectors.getGasPrice(state),
-    autoGasLimitEstimationStatus: state.config.meta.autoGasLimit
+    autoGasLimitEstimationStatus: state.config.meta.autoGasLimit,
+    offline: state.config.meta.offline
   };
 }
 
