@@ -500,8 +500,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
   private getTxGasPrice = (): string => {
     const { gasEstimates } = this.props;
     const { purchaseSubdomainGasPrice } = constants;
-    const gasPrice = !!gasEstimates ? gasEstimates.fast.toString() : purchaseSubdomainGasPrice;
-    return gasPrice;
+    return !!gasEstimates ? gasEstimates.fast.toString() : purchaseSubdomainGasPrice;
   };
 
   private getTxGasLimit = (): string => {
