@@ -51,7 +51,7 @@ interface StateProps {
   etherBalance: Wei | null;
   gasEstimates: AppState['gas']['estimates'];
   gasPrice: AppState['transaction']['fields']['gasPrice'];
-  autoGasLimitEstimationStatus: AppState['config']['meta']['autoGasLimit'];
+  autoGasLimit: AppState['config']['meta']['autoGasLimit'];
 }
 
 interface DispatchProps {
@@ -244,13 +244,16 @@ class ETHSimpleClass extends React.Component<Props, State> {
     const { esDomain, subdomainPriceETH } = constants;
     const domainToCheck = subdomain + esDomain;
     const req = domainRequests[domainToCheck];
-    const isAvailableDomain =
-      !!req && !!req.data ? (req.data as IBaseSubdomainRequest).mode === NameState.Open : false;
-    const ownedByThisAddress =
-      !!req && !!req.data ? (req.data as IBaseSubdomainRequest).ownerAddress === address : false;
+    const requestDataValid = !!req && !!req.data;
+    const isAvailableDomain = requestDataValid
+      ? (req.data as IBaseSubdomainRequest).mode === NameState.Open
+      : false;
+    const ownedByThisAddress = requestDataValid
+      ? (req.data as IBaseSubdomainRequest).ownerAddress === address
+      : false;
     const purchaseDisabled =
       !isValidDomain ||
-      isResolving ||
+      (isResolving && !requestDataValid) ||
       purchaseButtonClicked ||
       subdomain.length < 1 ||
       !isAvailableDomain ||
@@ -280,7 +283,6 @@ class ETHSimpleClass extends React.Component<Props, State> {
     const ownedByThisAddress = requestDataValid
       ? (req.data as IBaseSubdomainRequest).ownerAddress === address
       : false;
-    const validResolvedDomain = isValidDomain && !isResolving && requestDataValid;
     const spinnerIcon = <Spinner />;
     const checkIcon = <i className="fa fa-check" />;
     const xIcon = <i className="fa fa-remove" />;
@@ -300,17 +302,21 @@ class ETHSimpleClass extends React.Component<Props, State> {
     let label = null;
     let button = null;
 
-    if (!validResolvedDomain) {
+    if (purchaseButtonClicked) {
+      className = warningClass;
+      icon = spinnerIcon;
+      label = this.props.transactionBroadcasted
+        ? translate('ETHSIMPLE_STATUS_WAIT_FOR_MINE')
+        : translate('ETHSIMPLE_STATUS_WAIT_FOR_USER_CONFIRM');
+    } else {
       if (!isValidDomain) {
         className = invalidClass;
         label = translate('ENS_SUBDOMAIN_INVALID_INPUT');
-      } else {
+      } else if (!requestDataValid && isResolving) {
         className = warningClass;
         icon = spinnerIcon;
         label = translate('ETHSIMPLE_STATUS_RESOLVING_SUBDOMAIN', domainName);
-      }
-    } else {
-      if (!purchaseButtonClicked) {
+      } else if (requestDataValid) {
         if (isAvailableDomain) {
           button = refreshButton;
           if (this.insufficientEtherBalance()) {
@@ -330,14 +336,6 @@ class ETHSimpleClass extends React.Component<Props, State> {
             icon = xIcon;
             label = translate('ETHSIMPLE_STATUS_SUBDOMAIN_UNAVAILABLE', domainName);
           }
-        }
-      } else {
-        className = warningClass;
-        icon = spinnerIcon;
-        if (!this.props.transactionBroadcasted) {
-          label = translate('ETHSIMPLE_STATUS_WAIT_FOR_USER_CONFIRM');
-        } else {
-          label = translate('ETHSIMPLE_STATUS_WAIT_FOR_MINE');
         }
       }
     }
@@ -407,7 +405,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
     this.props.resetTransactionRequested();
     this.setGas();
     this.setState({ isFocused: true });
-    if (this.props.autoGasLimitEstimationStatus) {
+    if (this.props.autoGasLimit) {
       this.props.toggleAutoGasLimit();
     }
   };
@@ -707,7 +705,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
         purchaseButtonClicked: !closedByUser
       },
       () => {
-        if (!this.props.autoGasLimitEstimationStatus) {
+        if (!this.props.autoGasLimit) {
           this.props.toggleAutoGasLimit();
         }
       }
@@ -748,7 +746,7 @@ function mapStateToProps(state: AppState): StateProps {
     etherBalance: walletSelectors.getEtherBalance(state),
     gasEstimates: gasSelectors.getEstimates(state),
     gasPrice: transactionFieldsSelectors.getGasPrice(state),
-    autoGasLimitEstimationStatus: state.config.meta.autoGasLimit
+    autoGasLimit: state.config.meta.autoGasLimit
   };
 }
 
