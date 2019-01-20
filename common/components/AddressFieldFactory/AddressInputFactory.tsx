@@ -121,7 +121,7 @@ class AddressInputFactoryClass extends Component<Props> {
               })
             }
           />
-          {(isFocused || isValid) && (
+          {(isFocused || (isValid && isLabelEntry)) && (
             <ENSStatus ensAddress={currentTo.raw} isLoading={isResolving} rawAddress={addr} />
           )}
           {isFocused &&

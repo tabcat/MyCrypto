@@ -271,7 +271,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
   };
 
   private generateStatusLabel = (): React.ReactElement<any> => {
-    const { subdomain, isValidDomain, purchaseButtonClicked, address } = this.state;
+    const { subdomain, isValidDomain, purchaseButtonClicked, address, successStatus } = this.state;
     const { isResolving, domainRequests } = this.props;
     const { esDomain, esFullDomain } = constants;
     const domainToCheck = subdomain + esDomain;
@@ -283,6 +283,9 @@ class ETHSimpleClass extends React.Component<Props, State> {
     const ownedByThisAddress = requestDataValid
       ? (req.data as IBaseSubdomainRequest).ownerAddress === address
       : false;
+    const isResolvingCurrentDomain = !requestDataValid && isResolving;
+    const isRefreshingCurrentDomain =
+      isResolving && requestDataValid && req.state !== successStatus;
     const spinnerIcon = <Spinner />;
     const checkIcon = <i className="fa fa-check" />;
     const xIcon = <i className="fa fa-remove" />;
@@ -312,7 +315,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
       if (!isValidDomain) {
         className = invalidClass;
         label = translate('ENS_SUBDOMAIN_INVALID_INPUT');
-      } else if (!requestDataValid && isResolving) {
+      } else if (isResolvingCurrentDomain || isRefreshingCurrentDomain) {
         className = warningClass;
         icon = spinnerIcon;
         label = translate('ETHSIMPLE_STATUS_RESOLVING_SUBDOMAIN', domainName);
@@ -436,14 +439,15 @@ class ETHSimpleClass extends React.Component<Props, State> {
     const { domainRequests, isResolving } = this.props;
     const domainToCheck = subdomain + constants.esDomain;
     const req = domainRequests[domainToCheck];
-    const resolveCompleteAndValid =
+    if (
       !isResolving &&
       isValidDomain &&
       !!req &&
       !req.error &&
+      !!req.data &&
       !!(req.data as IBaseSubdomainRequest) &&
-      (req.data as IBaseSubdomainRequest).name === domainToCheck;
-    if (resolveCompleteAndValid && !!req.data) {
+      (req.data as IBaseSubdomainRequest).name === domainToCheck
+    ) {
       return true;
     }
     return false;
