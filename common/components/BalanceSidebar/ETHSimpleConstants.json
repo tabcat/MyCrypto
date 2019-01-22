@@ -4,6 +4,7 @@
   "esDomain":".ethsimple",
   "esFullDomain":".ethsimple.eth",
   "placeholderDomain":"mydomain",
+  "defaultDescAddr":"0x314159265dD8dbb310642f98f50C066173C1259b",
   "supportedNetworks":["ETH","Ropsten"],
   "subdomainPriceETH":"0.0079",
   "subdomainPriceWei":"7900000000000000",
