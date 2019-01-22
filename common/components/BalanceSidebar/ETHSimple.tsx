@@ -91,6 +91,7 @@ interface State {
   pollTimeout: boolean;
   showModal: boolean;
   broadcastedHash: string;
+  testMode: boolean;
 }
 
 class ETHSimpleClass extends React.Component<Props, State> {
@@ -103,7 +104,8 @@ class ETHSimpleClass extends React.Component<Props, State> {
     pollTimeout: false,
     showModal: false,
     txBroadcasted: false,
-    broadcastedHash: ''
+    broadcastedHash: '',
+    testMode: true
   };
 
   public componentDidMount() {
@@ -142,7 +144,8 @@ class ETHSimpleClass extends React.Component<Props, State> {
   }
 
   private setAddress = () => {
-    const address = this.props.toChecksumAddress(this.props.wallet.getAddressString());
+    const { toChecksumAddress, wallet } = this.props;
+    const address = toChecksumAddress(wallet.getAddressString());
     this.setState({ address });
   };
 
@@ -164,12 +167,18 @@ class ETHSimpleClass extends React.Component<Props, State> {
         {modal}
       </div>
     ) : null;
+    const testButton = this.state.testMode ? (
+      <button className="ETHSimple-section-refresh" onClick={this.testSubdomainPurchase}>
+        <i className="fa fa-plus" />
+      </button>
+    ) : null;
     return (
       <div className="ETHSimple">
         <h5 className="ETHSimple-title">{title}</h5>
         <div className="ETHSimple-description">{description}</div>
         {component}
         {esLogoButton}
+        {testButton}
       </div>
     );
   }
@@ -426,7 +435,8 @@ class ETHSimpleClass extends React.Component<Props, State> {
       setValueField,
       inputData,
       inputGasPrice,
-      inputGasLimit
+      inputGasLimit,
+      getNonceRequested
     } = this.props;
     const txAddress = this.getTxAddress();
     const txData = this.getTxData();
@@ -437,7 +447,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
       nonceStatus !== transactionNetworkTypes.RequestStatus.SUCCEEDED &&
       nonceStatus !== transactionNetworkTypes.RequestStatus.REQUESTED
     ) {
-      this.props.getNonceRequested();
+      getNonceRequested();
     }
     setToField({ raw: txAddress, value: Address(txAddress) });
     setValueField({ raw: fromWei(txValue, 'ether'), value: txValue });
@@ -627,14 +637,19 @@ class ETHSimpleClass extends React.Component<Props, State> {
     });
   };
 
+  private testSubdomainPurchase = () => {
+    this.props.subdomainPurchased(this.state.subdomain + constants.esFullDomain);
+  };
+
   /**
    *
    * @desc Refreshes the resolution data for a recently registered domain name
    */
   private refreshDomainResolution = () => {
-    this.props.resolveDomainRequested(
+    const { resolveDomainRequested, networkConfig } = this.props;
+    resolveDomainRequested(
       this.state.subdomain + constants.esDomain,
-      this.props.networkConfig.isTestnet,
+      networkConfig.isTestnet,
       true
     );
   };
@@ -669,12 +684,12 @@ class ETHSimpleClass extends React.Component<Props, State> {
   };
 
   private openModal = () => {
-    const { currentTransactionStatus } = this.props;
+    const { currentTransactionStatus, showNotification } = this.props;
     if (
       !!currentTransactionStatus &&
       (currentTransactionStatus.broadcastSuccessful || currentTransactionStatus.isBroadcasting)
     ) {
-      return this.props.showNotification(
+      return showNotification(
         'warning',
         'The current transaction is already broadcasting or has been successfully broadcasted'
       );
@@ -691,14 +706,15 @@ class ETHSimpleClass extends React.Component<Props, State> {
   private cancelModal = () => this.closeModal(true);
 
   private closeModal = (closedByUser: boolean) => {
+    const { autoGasLimitEnabled, toggleAutoGasLimit } = this.props;
     this.setState(
       {
         showModal: false,
         purchaseButtonClicked: !closedByUser
       },
       () => {
-        if (!this.props.autoGasLimitEnabled) {
-          this.props.toggleAutoGasLimit();
+        if (!autoGasLimitEnabled) {
+          toggleAutoGasLimit();
         }
       }
     );
@@ -713,8 +729,8 @@ class ETHSimpleClass extends React.Component<Props, State> {
   private getTxStatus = () => {
     this.setState({ pollTimeout: false }, () => {
       const { fetchTransactionData } = this.props;
-      const { broadcastedHash } = this.state;
-      if (this.state.purchaseButtonClicked && !!broadcastedHash) {
+      const { purchaseButtonClicked, broadcastedHash } = this.state;
+      if (purchaseButtonClicked && !!broadcastedHash) {
         fetchTransactionData(broadcastedHash);
       }
     });
