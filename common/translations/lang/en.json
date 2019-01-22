@@ -523,7 +523,7 @@
     "ETHSIMPLE_DESC": "Receive ETH at **`$domain`** instead of `$addr`",
     "ETHSIMPLE_ACTION": "**Purchase domain** for $domainPriceEth ETH",
     "ETHSIMPLE_STATUS_RESOLVING_DOMAIN": "  Resolving $domain...",
-    "ETHSIMPLE_STATUS_SUBDOMAIN_UNAVAILABLE": " **domain** is unavailable",
+    "ETHSIMPLE_STATUS_SUBDOMAIN_UNAVAILABLE": " **$domain** is unavailable",
     "ETHSIMPLE_STATUS_SUBDOMAIN_AVAILABLE": " **$domain** is available",
     "ETHSIMPLE_STATUS_SUBDOMAIN_OWNED_BY_USER": " You own **$domain**",
     "ETHSIMPLE_STATUS_SUBDOMAIN_AVAILABLE_INSUFFICIENT_FUNDS": " **$domain** is available; but your balance is insufficient to purchase",

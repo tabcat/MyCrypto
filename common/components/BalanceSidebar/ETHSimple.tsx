@@ -606,6 +606,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
     return (
       purchaseButtonClicked &&
       initialPollRequested &&
+      !!txDatas[broadcastedHash] &&
       !!txDatas[broadcastedHash].receipt &&
       !!(txDatas[broadcastedHash].receipt as TransactionReceipt).status &&
       (txDatas[broadcastedHash].receipt as TransactionReceipt).status === 1
