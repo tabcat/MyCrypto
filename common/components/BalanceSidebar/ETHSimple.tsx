@@ -460,7 +460,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
 
   /**
    *
-   * @desc Returns the hex-encoded value parameter for a subdomain registration transaction
+   * @desc Returns the value parameter for a subdomain registration transaction denominated in Wei
    * @returns {string}
    */
   private getTxValue = (): Wei => {
@@ -738,7 +738,8 @@ function mapStateToProps(state: AppState): StateProps {
     currentTransactionStatus: transactionSelectors.getCurrentTransactionStatus(state),
     transactionBroadcasted: transactionSelectors.currentTransactionBroadcasted(state),
     signaturePending: derivedSelectors.signaturePending(state).isSignaturePending,
-    signedTx: !!transactionSignSelectors.getWeb3Tx(state)
+    signedTx:
+      !!transactionSignSelectors.getSignedTx(state) || !!transactionSignSelectors.getWeb3Tx(state)
   };
 }
 
