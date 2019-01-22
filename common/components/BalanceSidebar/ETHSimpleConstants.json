@@ -1,6 +1,6 @@
 {
-	"esURL":"https://ethsimple.com",
-	"tld":".eth",
+  "esURL":"https://ethsimple.com",
+  "tld":".eth",
   "esDomain":".ethsimple",
   "esFullDomain":".ethsimple.eth",
   "placeholderDomain":"mydomain",

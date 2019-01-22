@@ -129,6 +129,48 @@
     }
   }
 
+  &-public-name {
+    @include clearfix;
+
+    &-wrapper {
+      max-width: 100%;
+
+      &-error {
+        color: color(brand-danger);
+        margin-bottom: $space-md;
+      }
+    }
+
+    &-addr {
+      margin-top: -$space-xs;
+      word-wrap: break-word;
+      @include mono;
+
+      &--small {
+        font-size: 0.8rem;
+        margin-bottom: 0rem;
+        display: inline-flex;
+      }
+    }
+  }
+
+  .status {
+
+  	&-icon {
+	  	font-size: 0.7rem;
+	  	vertical-align: top;
+		  margin-top: 0.0rem;
+		  margin-right: 0.05rem;
+	  }
+
+	  &-label {
+	  	font-weight: bolder;
+	  	font-size: 0.6rem;
+	  	vertical-align: top;
+		  margin-top: 0.0rem;
+	  }
+  }
+
   &-balance {
     display: flex;
     justify-content: flex-start;
@@ -151,4 +193,8 @@
       }
     }
   }
+
+  .help-block {
+		margin-bottom: 0.05rem;
+	}
 }
