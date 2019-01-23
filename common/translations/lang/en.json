@@ -529,7 +529,7 @@
     "ETHSIMPLE_STATUS_SUBDOMAIN_AVAILABLE_INSUFFICIENT_FUNDS": " **$domain** is available; but your balance is insufficient to purchase",
     "ETHSIMPLE_STATUS_WAIT_FOR_USER_CONFIRM": "  Waiting for transaction to be confirmed...",
     "ETHSIMPLE_STATUS_WAIT_FOR_MINE": "  Waiting for transaction to be mined...",
-    "ETHSIMPLE_SUBDOMAIN_TX_CONFIRMED_MODAL_DESC": "Your purchase of $domain has been confirmed!",
+    "ETHSIMPLE_TX_CONFIRMED_NOTIF_MSG": "Your purchase of $domain has been confirmed!",
     "ETHSIMPLE_UNSUPPORTED_NETWORK": "You're connected to $network. Connect to mainnet or Ropsten to purchase an ETHSimple subdomain.",
     "ENS_INSTANT_PURCHASE_DESCRIPTION": "The [Ethereum Name Service]($ens_docs) (ENS) is a distributed, open, and extensible naming system based on the Ethereum blockchain. Once you have a name, you can tell your friends to send ETH to `ensdomain.eth` instead of `$example_donation_addr...`",
     "ENS_INVALID_INPUT": "Must be at least 7 characters, no special characters",

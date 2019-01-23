@@ -172,10 +172,12 @@ class AccountAddress extends React.Component<Props, State> {
       const status = translate('ENS_REVERSE_RESOLVE_NAME_PUBLIC');
       labelContent = (
         <div className="AccountInfo-public-name-wrapper">
-          <div className="AccountInfo-public-name-addr--small help-block">
-            <label className="AccountInfo-address-label">{label}</label>
-            <i className="status-icon fa fa-check is-valid help-block" />
-            <span className="status-label is-valid help-block ">{status}</span>
+          <div className="AccountInfo-public-name-section help-block">
+            <label className="AccountInfo-public-name-label">{label}</label>
+            <i className="AccountInfo-public-name-status-icon fa fa-check is-valid help-block" />
+            <span className="AccountInfo-public-name-status-label is-valid help-block">
+              {status}
+            </span>
           </div>
         </div>
       );
