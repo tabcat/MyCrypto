@@ -651,9 +651,42 @@ class ETHSimpleClass extends React.Component<Props, State> {
     this.showTxConfirmedNotification();
     this.setState({ purchaseButtonClicked: false }, () => {
       this.props.refreshBalance();
-      setTimeout(this.refreshDomainResolution, 3000);
+      this.resolveNamePurchaseOwnership(this.state.subdomain + constants.esDomain, this.state.address);
     });
   };
+
+  /**
+   *
+   * @desc continually refreshes the resolution data for a recently registered domain name
+   * until the data shows ownership or the ttl has been reached.
+   */
+  private resolveNamePurchaseOwnership = (domainToCheck: string, address: string, ttl = 35: number) => {
+  const { isResolving, domainRequests } = this.props;
+  const req = domainRequests[domainToCheck];
+  const requestDataValid = !!req && !!req.data;
+  const isAvailableDomain = requestDataValid
+    ? (req.data as IBaseSubdomainRequest).mode === NameState.Open
+    : false;
+  const ownedByThisAddress = requestDataValid
+    ? (req.data as IBaseSubdomainRequest).ownerAddress === address
+    : false;
+
+  if (ttl > 0) {
+    if (!!isResolving) {
+      setTimeout(() => this.resolveNamePurchaseOwnership(domainToCheck, address, ttl - 1), 250)
+    } else {
+      if (!!ownedByThisAddress) {
+      } else if (!isAvailableDomain) {
+        //domain not available
+      } else {
+        this.refreshDomainResolution();
+        setTimeout(() => this.resolveNamePurchaseOwnership(domainToCheck, address, ttl - 1), 350);
+      }
+    }
+  } else {
+    setTimeout(this.refreshDomainResolution, 3000);
+  }
+}
 
   /**
    *
