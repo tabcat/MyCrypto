@@ -675,10 +675,7 @@ class ETHSimpleClass extends React.Component<Props, State> {
     if (!!isResolving) {
       setTimeout(() => this.resolveNamePurchaseOwnership(domainToCheck, address, ttl - 1), 250)
     } else {
-      if (!!ownedByThisAddress) {
-      } else if (!isAvailableDomain) {
-        //domain not available
-      } else {
+      if (!ownedByThisAddress) {
         this.refreshDomainResolution();
         setTimeout(() => this.resolveNamePurchaseOwnership(domainToCheck, address, ttl - 1), 350);
       }
